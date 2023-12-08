@@ -1,4 +1,17 @@
+use rusqlite::{
+    Connection,
+    Error,
+    Result
+};
 
-pub mod init {
-    pub const x: i32 = 69;
+use std::ffi::{
+    CStr,
+    CString
+};
+
+pub const X: i32 = 69;
+
+pub fn create_database() -> Result<(), Error> {
+    println!("henlo");
+    Ok(())
 }

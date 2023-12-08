@@ -1,10 +1,11 @@
 [package]
 name = "message-db-interface"
 version = "0.0.0"
-edition = "2023"
+edition = "2021"
 
 [lib]
 name = "msgdb"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
+rusqlite = "0.30.0"
