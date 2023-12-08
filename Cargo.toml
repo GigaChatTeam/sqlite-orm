@@ -1,0 +1,10 @@
+[package]
+name = "message-db-interface"
+version = "0.0.0"
+edition = "2023"
+
+[lib]
+name = "msgdb"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
