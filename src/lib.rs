@@ -1,19 +1,22 @@
 
-mod init;
-mod debug;
+mod interface;
 
-use init::*;
+use interface::*;
 
 #[cfg(test)]
 pub mod testing {
     use super::*;
 
     #[test]
-    fn main() {
+    fn test_of_test() {
         println!("test launched!");
         assert_eq!(2+2, 4);
-        assert_eq!(X, 69);
-        create_database().expect("How in the fucking world did this happen man");
-    }   
+        let _x = 69;
+    }
+    #[test]
+    fn database(){
+       assert_eq!(create_database("./database.db".as_ptr()), 0);
+    }
+
 }
 
