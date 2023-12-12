@@ -8,4 +8,7 @@ name = "msgdb"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
+bitflags = "2.4.1"
+cpp = "0.5.9"
+microserde = "0.1.13"
 rusqlite = "0.30.0"
