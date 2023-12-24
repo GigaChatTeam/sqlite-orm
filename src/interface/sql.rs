@@ -2,6 +2,10 @@
 //! Should not be used as API
 
 
+pub const GET_TABLE_NAMES: &str = r#"
+SELECT name FROM sqlite_master WHERE type='table'
+"#;
+
 pub const CREATE_USERS_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
