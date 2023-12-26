@@ -256,11 +256,11 @@ pub struct Message {
 /// Enum to represent errors that might happen when calling functions from this module\
 ///
 /// This is not intended to be used as a return value directlry. Instead, this should be casted to
-/// i8 (char | int8_t). It contains only negatuve values because positive are reserved for counters
+/// i32 (c_int). It contains only negatuve values because positive are reserved for counters
 /// (like amount of columns affected)
 ///
 /// NOTE: Maybe the representation type will be changed to bigger integer types, as well as 
-#[repr(i8)]
+#[repr(i32)]
 pub enum DbError {
     QueryError = -6,
     StatementError = -5,
@@ -290,18 +290,18 @@ fn write_to_db(m: Message) {
 /// * `dbname`: path to database being created ( TODO: check whether path should exist)
 ///
 /// # Returns 
-/// * i8 ( = c_char ): success status.
+/// * i32 ( = c_int ): success status.
 /// * * 0 = success
-/// * * any negative number = the i8 representation of fields in DbError enum
+/// * * any negative number = the i32 representation of fields in DbError enum
 /// * * any positive number = amount of errors occured duirng creating tables
 ///     (this showing up is either FFI or library's fault)
 ///
 /// # Example
 /// ```cpp
-/// extern "C" int8_t create_database(const char*);
+/// extern "C" int32_t create_database(const char*);
 /// <...>
 /// std::string database_name = "~/.local/share/GigaChat/gc.db"
-/// if ( (int8_t errors = create_database(database_name.data())) != 0 ) {
+/// if ( (int32_t errors = create_database(database_name.data())) != 0 ) {
 ///     if (errors > 0) {
 ///         std::cout << errors << " tables could not be created!"
 ///         shit_happened();
@@ -316,18 +316,18 @@ fn write_to_db(m: Message) {
 /// ```
 #[no_mangle]
 pub extern "C"
-fn create_database(dbname: *const u8) -> i8 {
+fn create_database(dbname: *const u8) -> i32 {
     let dbname = match ptr_to_str(dbname) {
         Ok(name) => name,
-        Err(_) => return DbError::InvalidCString as i8,
+        Err(_) => return DbError::InvalidCString as i32,
     };
 
     let db = match rusqlite::Connection::open(dbname) {
         Ok(db) => db,
-        Err(_) => return DbError::CouldNotOpen as i8,
+        Err(_) => return DbError::CouldNotOpen as i32,
     };
 
-    let mut return_value = 0i8;
+    let mut return_value = 0i32;
     let statements = &[ 
         sql::CREATE_USERS_TABLE, 
         sql::CREATE_ACCOUNTS_TABLE, 
@@ -346,14 +346,14 @@ fn create_database(dbname: *const u8) -> i8 {
     return return_value;
 }
 
-fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i8> {
+fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32> {
     if let Ok(mut nm) = connection.prepare(sql::GET_TABLE_NAMES) {
         match nm.query_map([], |name| name.get(0)) {
             Ok(map) => Ok(map.filter_map(|i| i.ok()).collect()),
-            Err(_) => return Err(DbError::QueryError as i8),
+            Err(_) => return Err(DbError::QueryError as i32),
         }
     } else { 
-        return Err(DbError::StatementError as i8) 
+        return Err(DbError::StatementError as i32) 
     }
 }
 
@@ -365,9 +365,9 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i8> 
 /// * `dbname`: path to the database file.
 ///
 /// # Returns
-/// * i8 ( = c_char ): success status
+/// * i32 ( = c_char ): success status
 /// * * 0 = success
-/// * * any negative number = i8 representation of DbError enum
+/// * * any negative number = i32 representation of DbError enum
 /// * * any positive number = amount of tables that had errors in deletion (this indicates that there
 /// is a FFI or library's fault)
 ///
@@ -377,7 +377,7 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i8> 
 /// #include <message_interface_cpp.h>
 /// <...>
 /// std::string name = "/home/user/.local/share/GigaChat/cache.db";
-/// int8_t status = clear_database(name.data());
+/// int32_t status = clear_database(name.data());
 /// if (status != 0) {
 ///     if (status > 0) std::cout << status << " tables were not deleted successfully";
 ///     else {
@@ -392,10 +392,10 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i8> 
 ///
 #[no_mangle]
 pub extern "C" 
-fn clear_database(dbname: *const u8) -> i8 {
+fn clear_database(dbname: *const u8) -> i32 {
     let dbname = match ptr_to_str(dbname) {
         Ok(name) => name,
-        Err(_) => return DbError::InvalidCString as i8,
+        Err(_) => return DbError::InvalidCString as i32,
     };
 
     match rusqlite::Connection::open(dbname) {
@@ -406,25 +406,25 @@ fn clear_database(dbname: *const u8) -> i8 {
             };
             let mut transaction = match db.transaction() {
                 Ok(trans) => trans,
-                Err(_) => return DbError::CouldNotStartTransaction as i8,
+                Err(_) => return DbError::CouldNotStartTransaction as i32,
             };
 
             transaction.set_drop_behavior(rusqlite::DropBehavior::Commit);
             
-            let mut error_count = names.len() as i8;
+            let mut error_count = names.len() as i32;
             for i in names {
                 match transaction.execute("DROP TABLE ?1", rusqlite::params![i]) {
-                    Ok(amount) => error_count -= (amount != 0) as i8,
+                    Ok(amount) => error_count -= (amount != 0) as i32,
                     Err(_) => error_count += 1,
                 };
             }
 
             match transaction.commit() {
                 Ok(_) => error_count,
-                Err(_) => DbError::CoundNotEndTransaction as i8,
+                Err(_) => DbError::CoundNotEndTransaction as i32,
             }
         },
-        Err(_) => DbError::CouldNotOpen as i8,
+        Err(_) => DbError::CouldNotOpen as i32,
     }
 }
 
