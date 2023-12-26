@@ -15,7 +15,7 @@
 use std::ops;
 
 // Cargo dependencies
-use rusqlite;
+use rusqlite::{self, params};
 
 use self::common::ptr_to_str;
 // use cpp;
@@ -245,6 +245,8 @@ pub struct Message {
     pub data_media: MessageData,
     /// ID of an author of the message
     pub sender: u64,
+    /// ID of a channel message was sent into
+    pub channel: u64,
     /// time in UNIX seconds
     pub time: u64,
     /// time in nanoseconds excluding whole seconds (actual_nanoseconds - UNIX_SECONDS*10^9)
@@ -262,6 +264,10 @@ pub struct Message {
 /// NOTE: Maybe the representation type will be changed to bigger integer types, as well as 
 #[repr(i32)]
 pub enum DbError {
+    UnknownError = -255,
+    SqliteFailure = -9,
+    AlreadyInitialized = -8,
+    Uninitialized = -7,
     QueryError = -6,
     StatementError = -5,
     CouldNotStartTransaction = -4,
@@ -270,16 +276,59 @@ pub enum DbError {
     CouldNotOpen = -1,
 }
 
-/// A function to panic with formatting. For internal-use only. 
-fn panic_with_message<T: std::error::Error>(function: &str, err: T, reason: &str) -> ! {
-    println!("Rust's `{function}` terminated with the error: `{err}` due to {reason}");
-    panic!()
+
+/// A function to open database
+fn open_db(path: *const u8) -> Result<rusqlite::Connection, DbError> {
+    let dbname = ptr_to_str(path).map_err(|_| DbError::InvalidCString)?;
+    rusqlite::Connection::open(dbname).map_err(|_| DbError::CouldNotOpen)
 }
 
+pub static mut DB_CONNECTION: Option<rusqlite::Connection> = None;
+
+/// Initializes the dynamic library. MUST BE CALLED BEFORE ANY OTHER FUNCTION.
+///
+/// What this funciton does is that it effectively creates all of the necessary global variables
+/// (only DB_CONNECTION at the moment). All of the global variables are of Result type and by
+/// default are set to Err(Uninitialized). If the function succeedes, it turns them into Ok() or
+/// whatever they are supposed to be
+///
+/// # Arguments
+/// * dbname: a C-string where the database should be opened
+///
+/// # Returns
+/// * 0 on success
+/// * DbError::Uninitialized (-7) as i32 if the file can not be read
+/// * DbError::AlreadyInitialized if the function is called more than once
+/// * other errors from DbError enum (like InvalidCString) if they can occur
+///
+/// # Example 
+/// ```C
+/// #include <message-db-interface.h> // may be changed in future
+///
+/// <...>
+///
+/// int main() {
+///     gigachat_database_interface_init("/home/garfield/.local/share/GigaChat/root.db");
+///
+///     // use any other functions from now on...
+///     if (gigachat_create_database() != 0) {
+///         perror("woah, that's unfortunate");
+///     }
+///     
+///     return 0;
+/// }
+/// ```
 #[no_mangle]
-pub extern "C" 
-fn write_to_db(m: Message) {
-    dbg!(m);
+pub unsafe extern "C"
+fn gigachat_init(dbname: *const u8) -> i32 {
+    if DB_CONNECTION.is_some() {
+        return DbError::AlreadyInitialized as i32;
+    }
+    DB_CONNECTION = match open_db(dbname) {
+        Ok(db) => Some(db),
+        Err(e) => return e as i32,
+    };
+    0
 }
 
 /// Creates database at path `dbname`
@@ -287,7 +336,7 @@ fn write_to_db(m: Message) {
 /// Creates every necessary table if they do not exist (may be used to fix integrity of database)
 ///  
 /// # Arguments 
-/// * `dbname`: path to database being created ( TODO: check whether path should exist)
+/// None
 ///
 /// # Returns 
 /// * i32 ( = c_int ): success status.
@@ -298,10 +347,12 @@ fn write_to_db(m: Message) {
 ///
 /// # Example
 /// ```cpp
-/// extern "C" int32_t create_database(const char*);
+/// extern "C" int32_t gigachat_create_database();
+/// extern "C" int32_t gigachat_database_interface_init(const char*);
 /// <...>
 /// std::string database_name = "~/.local/share/GigaChat/gc.db"
-/// if ( (int32_t errors = create_database(database_name.data())) != 0 ) {
+/// gigachat_database_interface_init(database_name.data())
+/// if ( (int32_t errors = gigachat_create_database()) != 0 ) {
 ///     if (errors > 0) {
 ///         std::cout << errors << " tables could not be created!"
 ///         shit_happened();
@@ -316,30 +367,25 @@ fn write_to_db(m: Message) {
 /// ```
 #[no_mangle]
 pub extern "C"
-fn create_database(dbname: *const u8) -> i32 {
-    let dbname = match ptr_to_str(dbname) {
-        Ok(name) => name,
-        Err(_) => return DbError::InvalidCString as i32,
-    };
-
-    let db = match rusqlite::Connection::open(dbname) {
-        Ok(db) => db,
-        Err(_) => return DbError::CouldNotOpen as i32,
+fn gigachat_create_database() -> i32 {
+    let db = match unsafe { DB_CONNECTION.as_mut() } {
+        Some(a) => a,
+        None => return DbError::Uninitialized as i32,
     };
 
     let mut return_value = 0i32;
     let statements = &[ 
-        sql::CREATE_USERS_TABLE, 
-        sql::CREATE_ACCOUNTS_TABLE, 
-        sql::CREATE_CHANNELS_TABLE, 
-        sql::CREATE_MESSAGES_TABLE,
-        sql::CREATE_CONFIG_TABLE
+        sql::create::USERS_TABLE, 
+        sql::create::ACCOUNTS_TABLE, 
+        sql::create::CHANNELS_TABLE, 
+        sql::create::MESSAGES_TABLE,
+        sql::create::CONFIG_TABLE,
+        sql::create::MEDIA_LINK_TABLE,
     ];
     
     for &i in statements {
-        match db.execute(i, []) {
-            Ok(_) => (),
-            Err(_) => return_value += 1,
+        if db.execute_batch(i).is_err() {
+            return_value += 1;
         }
     }
 
@@ -347,7 +393,7 @@ fn create_database(dbname: *const u8) -> i32 {
 }
 
 fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32> {
-    if let Ok(mut nm) = connection.prepare(sql::GET_TABLE_NAMES) {
+    if let Ok(mut nm) = connection.prepare(sql::misc::GET_TABLE_NAMES) {
         match nm.query_map([], |name| name.get(0)) {
             Ok(map) => Ok(map.filter_map(|i| i.ok()).collect()),
             Err(_) => return Err(DbError::QueryError as i32),
@@ -362,7 +408,7 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
 /// Note: This function does not clear local cached files!
 ///
 /// # Arguments
-/// * `dbname`: path to the database file.
+/// None
 ///
 /// # Returns
 /// * i32 ( = c_char ): success status
@@ -372,12 +418,13 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
 /// is a FFI or library's fault)
 ///
 /// # Example
-/// handling return value of the clear_database function
+/// handling return value of the gigachat_clear_database function
 /// ```cpp
 /// #include <message_interface_cpp.h>
 /// <...>
 /// std::string name = "/home/user/.local/share/GigaChat/cache.db";
-/// int32_t status = clear_database(name.data());
+/// gigachat_database_interface_init(name.data());
+/// int32_t status = gigachat_clear_database();
 /// if (status != 0) {
 ///     if (status > 0) std::cout << status << " tables were not deleted successfully";
 ///     else {
@@ -392,14 +439,9 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
 ///
 #[no_mangle]
 pub extern "C" 
-fn clear_database(dbname: *const u8) -> i32 {
-    let dbname = match ptr_to_str(dbname) {
-        Ok(name) => name,
-        Err(_) => return DbError::InvalidCString as i32,
-    };
-
-    match rusqlite::Connection::open(dbname) {
-        Ok(mut db) => {
+fn gigachat_clear_database() -> i32 {
+    match unsafe {DB_CONNECTION.as_mut()} {
+        Some(mut db) => {
             let names: Vec<String> = match load_names(&mut db){
                 Ok(name) => name,
                 Err(error) => return error,
@@ -413,7 +455,7 @@ fn clear_database(dbname: *const u8) -> i32 {
             
             let mut error_count = names.len() as i32;
             for i in names {
-                match transaction.execute("DROP TABLE ?1", rusqlite::params![i]) {
+                match transaction.execute(sql::misc::DROP, rusqlite::params![i]) {
                     Ok(amount) => error_count -= (amount != 0) as i32,
                     Err(_) => error_count += 1,
                 };
@@ -424,8 +466,89 @@ fn clear_database(dbname: *const u8) -> i32 {
                 Err(_) => DbError::CoundNotEndTransaction as i32,
             }
         },
-        Err(_) => DbError::CouldNotOpen as i32,
+        None => DbError::Uninitialized as i32,
     }
 }
 
+
+/// Not FFI-compatible function to insert a single message into database and cache this statement.
+///
+/// Should not be used outside of library. Use `insert_messages_to_database` instead.
+///
+/// # Arguments
+/// * db: mutable borrow of database connection
+/// * m: 
+fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<(), rusqlite::Error> {
+    let trans = db.transaction()?;
+
+    // todo!("load channel if it does not exist");
+    trans.prepare_cached(sql::insert::MESSAGE_CHANNEL)?
+        .execute(params![
+            m.channel,
+            "unnamed channel",
+        ])?;
+
+
+    if m.r#type & MessageType::TXT {
+        let mut stmt = trans.prepare_cached(sql::insert::MESSAGE_DATA)?;
+        stmt.execute(params![
+             m.channel, 
+             m.sender, 
+             m.time, 
+             m.time_ns, 
+             m.r#type, 
+             ptr_to_str(m.data_text as *const u8)?
+        ])?;
+    }
+    #[allow(unused, unreachable_code)]
+    if let MessageData::Media(media) = &m.data_media {
+        let mut stmt = trans.prepare_cached(sql::insert::MEDIA)?;
+        todo!("ADD CHECK FOR Message::r#type");
+        stmt.execute(params![
+            
+        ])?;
+    }
+    else if let MessageData::MediaArray(array) = &m.data_media {
+        todo!();
+    }
+    
+    trans.commit()?;
+    Ok(())
+}
+
+/// A function to insert any amount ofmessages into a database
+///
+/// # Arguments
+/// * mvec: message vector. A C-style array of `Message` structs that should be constructed in the
+/// language calling this library. must have no less than `len` valid Messages.
+/// * len ( in C: size_t): amount of messages in the array `mvec`. If mvec is a raw memory adderss,
+/// the last message will be located at `mvec + (sizeof(Message) * (len-1))`
+///
+/// # Returns
+/// i8: error_status
+/// * any negative number = error: an i32 representation of DbError enum member
+/// * any positive number = amount of inserted messages
+///
+/// # Example
+/// <nothing here yet...>
+#[no_mangle]
+pub extern "C"
+fn gigachat_insert_messages_to_database(mvec: *const Message, len: usize) -> i32 {
+    match unsafe { DB_CONNECTION.as_mut() } {
+        Some(mut connection) => {
+            let mut count = 0;
+            for i in unsafe { std::slice::from_raw_parts(mvec, len) } {
+                match insert_single_message(&mut connection, i) {
+                    Ok(_) => count += 1, 
+                    Err(e) => match e {
+                        rusqlite::Error::SqliteFailure(_, _) => return DbError::SqliteFailure as i32,
+                        _ => return DbError::UnknownError as i32,
+                    }
+                }
+            }
+            count
+        },
+        None => DbError::CouldNotOpen as i32,
+    }
+}
 
