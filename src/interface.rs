@@ -15,7 +15,7 @@
 use std::ops;
 
 // Cargo dependencies
-use rusqlite;
+use rusqlite::{self, params};
 
 use self::common::ptr_to_str;
 // use cpp;
@@ -245,6 +245,8 @@ pub struct Message {
     pub data_media: MessageData,
     /// ID of an author of the message
     pub sender: u64,
+    /// ID of a channel message was sent into
+    pub channel: u64,
     /// time in UNIX seconds
     pub time: u64,
     /// time in nanoseconds excluding whole seconds (actual_nanoseconds - UNIX_SECONDS*10^9)
@@ -274,6 +276,12 @@ pub enum DbError {
 fn panic_with_message<T: std::error::Error>(function: &str, err: T, reason: &str) -> ! {
     println!("Rust's `{function}` terminated with the error: `{err}` due to {reason}");
     panic!()
+}
+
+/// A function to open database
+fn open_db(path: *const u8) -> Result<rusqlite::Connection, DbError> {
+    let dbname = ptr_to_str(path).map_err(|_| DbError::InvalidCString)?;
+    rusqlite::Connection::open(dbname).map_err(|_| DbError::CouldNotOpen)
 }
 
 #[no_mangle]
@@ -317,29 +325,28 @@ fn write_to_db(m: Message) {
 #[no_mangle]
 pub extern "C"
 fn create_database(dbname: *const u8) -> i32 {
-    let dbname = match ptr_to_str(dbname) {
-        Ok(name) => name,
-        Err(_) => return DbError::InvalidCString as i32,
-    };
-
-    let db = match rusqlite::Connection::open(dbname) {
+    let db = match open_db(dbname) {
         Ok(db) => db,
-        Err(_) => return DbError::CouldNotOpen as i32,
+        Err(e) => return e as i32,
     };
 
     let mut return_value = 0i32;
     let statements = &[ 
-        sql::CREATE_USERS_TABLE, 
-        sql::CREATE_ACCOUNTS_TABLE, 
-        sql::CREATE_CHANNELS_TABLE, 
-        sql::CREATE_MESSAGES_TABLE,
-        sql::CREATE_CONFIG_TABLE
+        sql::create::USERS_TABLE, 
+        sql::create::ACCOUNTS_TABLE, 
+        sql::create::CHANNELS_TABLE, 
+        sql::create::MESSAGES_TABLE,
+        sql::create::CONFIG_TABLE,
+        sql::create::MEDIA_LINK_TABLE,
     ];
     
     for &i in statements {
-        match db.execute(i, []) {
+        match db.execute_batch(i) {
             Ok(_) => (),
-            Err(_) => return_value += 1,
+            Err(_) => {
+                dbg!(&i);
+                return_value += 1
+            }
         }
     }
 
@@ -347,7 +354,7 @@ fn create_database(dbname: *const u8) -> i32 {
 }
 
 fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32> {
-    if let Ok(mut nm) = connection.prepare(sql::GET_TABLE_NAMES) {
+    if let Ok(mut nm) = connection.prepare(sql::misc::GET_TABLE_NAMES) {
         match nm.query_map([], |name| name.get(0)) {
             Ok(map) => Ok(map.filter_map(|i| i.ok()).collect()),
             Err(_) => return Err(DbError::QueryError as i32),
@@ -393,12 +400,7 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
 #[no_mangle]
 pub extern "C" 
 fn clear_database(dbname: *const u8) -> i32 {
-    let dbname = match ptr_to_str(dbname) {
-        Ok(name) => name,
-        Err(_) => return DbError::InvalidCString as i32,
-    };
-
-    match rusqlite::Connection::open(dbname) {
+    match open_db(dbname) {
         Ok(mut db) => {
             let names: Vec<String> = match load_names(&mut db){
                 Ok(name) => name,
@@ -413,7 +415,7 @@ fn clear_database(dbname: *const u8) -> i32 {
             
             let mut error_count = names.len() as i32;
             for i in names {
-                match transaction.execute("DROP TABLE ?1", rusqlite::params![i]) {
+                match transaction.execute(sql::misc::DROP, rusqlite::params![i]) {
                     Ok(amount) => error_count -= (amount != 0) as i32,
                     Err(_) => error_count += 1,
                 };
@@ -424,8 +426,71 @@ fn clear_database(dbname: *const u8) -> i32 {
                 Err(_) => DbError::CoundNotEndTransaction as i32,
             }
         },
-        Err(_) => DbError::CouldNotOpen as i32,
+        Err(e) => e as i32,
     }
 }
 
+
+/// Not FFI-compatible function to insert a single message into database and cache this statement.
+///
+/// Should not be used outside of library. Use `insert_messages_to_database` instead.
+///
+/// # Arguments
+/// * db: mutable borrow of database connection
+/// * m: 
+fn insert_single_message(db: &mut rusqlite::Connection, m: Message) ->  Result<(), Box<dyn std::error::Error>> {
+    let trans = db.transaction()?;
+    if m.r#type & MessageType::TXT {
+        let mut stmt = trans.prepare_cached(sql::insert::MESSAGE_DATA)?;
+        stmt.execute(params![
+             m.channel, 
+             m.sender, 
+             m.time, 
+             m.time_ns, 
+             m.r#type, 
+             ptr_to_str(m.data_text as *const u8)?
+        ])?;
+    }
+    if let MessageData::Media(media) = m.data_media {
+        let mut stmt = trans.prepare_cached(sql::insert::MEDIA)?;
+        todo!("ADD CHECK FOR Message::r#type");
+        todo!("IMPLEMENT MEDIA VALIDITY CHECK AND INSERTING");
+        stmt.execute(params![
+            
+        ])?;
+    }
+    else if let MessageData::MediaArray(array) = m.data_media {
+        todo!();
+    }
+    
+    trans.commit()?;
+    Ok(())
+}
+
+/// A function to insert any amount ofmessages into a database
+///
+/// # Arguments
+/// * dbname: path to database (C-style string)
+/// * mvec: message vector. A C-style array of `Message` structs that should be constructed in the
+/// language calling this library. must have no less than `len` valid Messages.
+/// * len ( in C: size_t): amount of messages in the array `mvec`. If mvec is a raw memory adderss,
+/// the last message will be located at `mvec + (sizeof(Message) * (len-1))`
+///
+/// # Returns
+/// i8: error_status
+/// * any negative number = error: an i32 representation of DbError enum member
+/// * any positive number = amount of inserted messages
+///
+/// # Example
+/// <nothing here yet...>
+#[no_mangle]
+pub extern "C"
+fn insert_messages_to_database(dbname: *const u8, mvec: *const Message, len: usize) -> i32 {
+    match open_db(dbname) {
+        Ok(mut connection) => {
+            todo!("use function insert_single_message");
+        },
+        Err(_) => return DbError::CouldNotOpen as i32,
+    }
+}
 

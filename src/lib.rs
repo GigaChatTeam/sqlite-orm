@@ -30,5 +30,10 @@ pub mod testing {
         interface::networking::load_channels(1, "justanothercatgirl\0".as_ptr(), "https://example.com\0".as_ptr())
     }
 
+    #[test]
+    fn creation() {
+        assert_eq!(create_database("/home/main/.local/share/gigaqt/gigaqt.db\0".as_ptr()), 0);
+    }
+
 }
 
