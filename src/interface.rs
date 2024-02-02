@@ -488,7 +488,6 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
             "unnamed channel",
         ])?;
 
-
     if m.r#type & MessageType::TXT {
         let mut stmt = trans.prepare_cached(sql::insert::MESSAGE_DATA)?;
         stmt.execute(params![
