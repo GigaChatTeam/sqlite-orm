@@ -79,7 +79,7 @@ INSERT OR IGNORE
 
 pub mod misc {
     pub const GET_TABLE_NAMES: &str = r"SELECT name FROM sqlite_master WHERE type='table'";
-    pub const DROP: &str = "DROP TABLE ?1";
+    pub const DROP: &str = "DROP TABLE ";
 }
 
 // pub const : &str = r#""#;

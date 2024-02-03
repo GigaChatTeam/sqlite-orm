@@ -15,7 +15,7 @@
 use std::ops;
 
 // Cargo dependencies
-use rusqlite::{self, params};
+use rusqlite::{self, config, params};
 
 use self::common::ptr_to_str;
 // use cpp;
@@ -283,6 +283,7 @@ fn open_db(path: *const u8) -> Result<rusqlite::Connection, DbError> {
     rusqlite::Connection::open(dbname).map_err(|_| DbError::CouldNotOpen)
 }
 
+/// The main object for this shared object. Important: not thread-safe!
 pub static mut DB_CONNECTION: Option<rusqlite::Connection> = None;
 
 /// Initializes the dynamic library. MUST BE CALLED BEFORE ANY OTHER FUNCTION.
@@ -383,7 +384,7 @@ fn gigachat_create_database() -> i32 {
         sql::create::MEDIA_LINK_TABLE,
     ];
     
-    for &i in statements {
+    for i in statements {
         if db.execute_batch(i).is_err() {
             return_value += 1;
         }
@@ -453,11 +454,13 @@ fn gigachat_clear_database() -> i32 {
 
             transaction.set_drop_behavior(rusqlite::DropBehavior::Commit);
             
-            let mut error_count = names.len() as i32;
+            let mut error_count = 0i32;
             for i in names {
-                match transaction.execute(sql::misc::DROP, rusqlite::params![i]) {
-                    Ok(amount) => error_count -= (amount != 0) as i32,
-                    Err(_) => error_count += 1,
+                let query = format!("{}{};", sql::misc::DROP, i);
+                if let Err(_e) = transaction.execute_batch(query.as_str()) {
+                    error_count += 1;
+                    #[cfg(test)]
+                    dbg!(_e);
                 };
             }
 
@@ -547,7 +550,7 @@ fn gigachat_insert_messages_to_database(mvec: *const Message, len: usize) -> i32
             }
             count
         },
-        None => DbError::CouldNotOpen as i32,
+        None => DbError::Uninitialized as i32,
     }
 }
 
