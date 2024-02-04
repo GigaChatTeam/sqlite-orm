@@ -2,7 +2,12 @@ pub mod interface;
 
 #[cfg(test)]
 pub mod testing {
+    use std::ffi::CString;
+    use std::time::SystemTime;
+
     use super::interface::*;
+    use rand::Rng;
+    use random::{self, Source};
 
     #[test]
     fn create_database() {
@@ -10,8 +15,23 @@ pub mod testing {
         assert_eq!(gigachat_create_database(), 0);
     }
 
-    #[test] 
-    fn read_write() {
+    // helper function
+    fn gen_rand_msg(gen: &mut random::Xorshift128Plus, x: &CString) -> Message {
+        Message {
+            r#type: MessageType::TXT as u32,
+            data_text: x.as_ptr(),
+            data_media: MessageData::Nomedia(()),
+            channel: gen.read_u64() % 100,
+            sender: gen.read_u64() % 100,
+            time: gen.read_u64() % 10000000,
+            time_ns: gen.read_u64() % 1000,
+            reply_id: 0,
+        }
+    }
+
+    // write a single message
+    #[test]
+    fn write_1() {
         unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr())) };
         let m1: Message = Message {
             r#type: MessageType::TXT as u32,
@@ -23,18 +43,40 @@ pub mod testing {
             time_ns: 0,
             reply_id: 0,
         };
-        let m2: Message = Message {
-            r#type: MessageType::TXT as u32,
-            data_text: "ты пидр\0".as_ptr() as *const i8,
-            data_media: MessageData::Nomedia(()),
-            channel: 0,
-            sender: 1,
-            time: 1000001,
-            time_ns: 500,
-            reply_id: 0,
-        };
-        let messages = vec![m1, m2];
-        assert_eq!(gigachat_insert_messages(messages.as_ptr(), messages.len()), 2);
+        let messages = vec![m1];
+        assert!(gigachat_insert_messages(messages.as_ptr(), messages.len()) >= 0);
+    }
+
+    // write messages one-by-one in a loop
+    #[test]
+    fn write_loop() {
+        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr())) };
+        let mut amount = 0i32;
+        let mut gen = random::default(
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        );
+        for i in 1..100 {
+            let x = CString::new(format!("{} N. {} | {}", "loop_write", i, gen.read_u64())).unwrap();
+            let m1 = gen_rand_msg(&mut gen, &x);
+            let messages = vec![m1];
+            amount += gigachat_insert_messages(messages.as_ptr(), messages.len());
+        }
+        assert_eq!(amount, 99);
+    }
+
+    // write messages as an array
+    #[test]
+    fn write_array() {
+        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr())) };
+        let mut gen = random::default(rand::thread_rng().gen());
+        let x = CString::new(format!("{} | {}", "array_write", gen.read_u64())).unwrap();
+        let messages: Vec<Message> = std::iter::repeat_with( || gen_rand_msg(&mut gen, &x) )
+            .take(100)
+            .collect();
+        assert_eq!(gigachat_insert_messages(messages.as_ptr(), messages.len()), 100);
     }
 
     #[test]
@@ -42,11 +84,4 @@ pub mod testing {
         unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr())) };
         assert_eq!(gigachat_clear_database(), 0);
     }
-
-    // #[test]
-    // fn get_users() {
-    //     interface::networking::load_channels(1, "justanothercatgirl\0".as_ptr(), "https://example.com\0".as_ptr())
-    // }
-
 }
-

@@ -15,7 +15,7 @@
 use std::ops;
 
 // Cargo dependencies
-use rusqlite::{self, config, params};
+use rusqlite::{self, params};
 
 use self::common::ptr_to_str;
 // use cpp;
