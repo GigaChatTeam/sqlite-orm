@@ -2,8 +2,6 @@ pub mod interface;
 
 #[cfg(test)]
 pub mod testing {
-    use crate::interface;
-
     use super::interface::*;
 
     #[test]
@@ -36,7 +34,7 @@ pub mod testing {
             reply_id: 0,
         };
         let messages = vec![m1, m2];
-        assert_eq!(gigachat_insert_messages_to_database(messages.as_ptr(), messages.len()), 2);
+        assert_eq!(gigachat_insert_messages(messages.as_ptr(), messages.len()), 2);
     }
 
     #[test]

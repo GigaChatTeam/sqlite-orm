@@ -535,7 +535,7 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
 /// <nothing here yet...>
 #[no_mangle]
 pub extern "C"
-fn gigachat_insert_messages_to_database(mvec: *const Message, len: usize) -> i32 {
+fn gigachat_insert_messages(mvec: *const Message, len: usize) -> i32 {
     match unsafe { DB_CONNECTION.as_mut() } {
         Some(mut connection) => {
             let mut count = 0;
@@ -554,3 +554,23 @@ fn gigachat_insert_messages_to_database(mvec: *const Message, len: usize) -> i32
     }
 }
 
+// cursed
+
+// /// Frees array of messages allocated by the API 
+// #[no_mangle]
+// pub unsafe extern "C"
+// fn gigachat_free(ptr: *mut Message) {
+//     if ptr.is_null() {
+//         return;
+//     }
+//     drop::<Box::<[Message]>>(Box::from_raw(ptr));
+// }
+
+// /// A function to read messages from database
+// #[no_mangle]
+// pub extern "C"
+// fn gigachat_get_messages(channel: u64, amount: usize) -> *mut Message {
+//     let mut arr = vec![];
+//     arr.as_mut_ptr(), arr.len()
+//     std::ptr::null_mut()
+// }
