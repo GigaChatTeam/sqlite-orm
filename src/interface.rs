@@ -10,6 +10,22 @@
 //! Any contributions to FFI are welcome. They will be accepted in `include/` directory of this
 //! project. Please don't request changes to cbindgen output.
 //!
+//! # Less important note
+//! All of the functions from this module are not thread-safe without feature `multithread` enabled.
+//! It is recommended to enable it for your project unless you want to have issues with absolutely
+//! random crashes, segfaults and database corruptions. Errors found during tests without
+//! multithrerad feature enabled:
+//! * signal 11, SIGSEGV. Random, hard to reproduce, cause unknown (probably something inside
+//! sqlite3.so)
+//! * signal 6,  SIGABRT. 2 Possible causes: rusqlite panicking with BorrowMutError or unknown
+//! cause (not on the rust side)
+//! Note that you can use this module without the feature in a multithreaded application,
+//! however you NEED to make sure that the shared library code is ONLY ever called from a single 
+//! thread.
+//!
+//! # Example
+//! {{ Not yet provided }}
+//!
 
 // standard library
 use std::ops;
@@ -39,7 +55,8 @@ pub mod common;
 /// Fields `description` and `avatar` are optional, and since this struct needs to be
 /// FFI-compatible, null pointers are used instead of Option<> type
 ///
-/// Note: This struct has 
+/// Note: This struct has {{documentation was accidentally lost somewhere in commits but
+/// should have been nothing important. Maybe todo: find the deleted docs}}
 #[repr(C)]
 #[derive(Debug)]
 pub struct Channel {
@@ -68,7 +85,6 @@ pub struct Channel {
 /// both text and image associated with it:
 /// ```cpp
 /// write_msg({MessageType::TEXT | MessageType::IMAGE, "", ...})
-///
 /// ```
 ///
 #[repr(C)]
@@ -96,7 +112,7 @@ pub enum MessageType {
     REACT       = 1 << 8,
     /// an arbitrary amount of media that is displayed in a single message. media can be of any of
     /// the types above except TXT, STCKR and REACT. Some of the formats (like MUS, AMSG, VMSG)
-    /// will probavly have strange behaviour
+    /// will probably have strange behaviour
     MEDGROUP    = 1 << 9,
 }
 
@@ -133,7 +149,9 @@ impl_bitand!(u32, MessageType);
 /// enum to represent what type of data is stored in database
 ///
 /// I didn't find application for this but it is there I guess
-///
+/// TODO: Remove from the source completely.
+/// for now marked as deprecated 
+#[deprecated(since = "0.0.0", note = "NO ONE USE THIS ONE GUYS")]
 #[repr(C)]
 #[derive(Debug)]
 pub enum EntryType {
@@ -186,13 +204,13 @@ pub struct MediaCoordinates {
 /// A struct to represent Media entry 
 ///
 /// This struct is intended to be used as array with MediaGroup MessageType or as an individual
-/// struct. It may store path to thumbnain (preview) of the image/audio/any other media type.
+/// struct. It may store path to thumbnail (preview) of the image/audio/any other media type.
 ///
 /// For example, if a Media entry is a voice message, the struct will be initialized as following:
-/// <code class="language-rust">
+/// ```rs
 /// // show there is no preview for audio message (however there can be one)
 /// Media{MediaType::AUD, "~/.local/...", std::ptr::null(), {0,0,1,1}}
-/// </code>
+/// ```
 ///
 #[repr(C)]
 #[derive(Debug)]
@@ -236,6 +254,11 @@ pub enum MessageData {
 
 /// A struct to represent any type of Message.
 ///
+/// The core of the API. Every message should be represented by this struct and every Message is
+/// writable to database. Database also returns type "message". Overall, a really important guy
+/// here.
+///
+/// # Note:
 /// Message can contain any number of attachements. MessageType is a flag enum and the contents of
 /// the message is deterined by `type` field
 #[derive(Debug)]
@@ -260,13 +283,17 @@ pub struct Message {
     pub reply_id: u64,
 }
 
-/// Enum to represent errors that might happen when calling functions from this module\
+/// Enum to represent errors that might occur when calling functions from this module
 ///
 /// This is not intended to be used as a return value directlry. Instead, this should be casted to
-/// i32 (c_int). It contains only negatuve values because positive are reserved for counters
-/// (like amount of columns affected)
+/// i32 (c_int). It contains only negatuve values because positive are reserved.
 ///
-/// NOTE: Maybe the representation type will be changed to bigger integer types, as well as 
+/// The reserved valued are defined as following:
+/// * negative value: an error from this enum
+/// * 0: success
+/// * positive number: status report defined by the function (e.g. amount of inserted rows or
+/// sometimes amount of errors. Refer to the documentation of specific function)
+///
 #[repr(i32)]
 pub enum DbError {
     UnknownError = -255,
@@ -290,25 +317,26 @@ fn open_db(path: *const u8) -> Result<rusqlite::Connection, DbError> {
     rusqlite::Connection::open(dbname).map_err(|_| DbError::CouldNotOpen)
 }
 
-
-/// A function to open database
+/// A function to open database (multithread variant)
 #[cfg(feature = "multithread")]
 fn open_db(path: *const u8) -> Result<SqliteConnectionManager, DbError> {
     let dbname = ptr_to_str(path).map_err(|_| DbError::InvalidCString)?;
     Ok(SqliteConnectionManager::file(dbname))
 }
 
-/// The main object for this shared object. Important: not thread-safe!
+/// The main object for this library. Important: not thread-safe! Thread-safe variant is presented
+/// below under #[cfg(feature = "multithread")]
 #[cfg(not(feature = "multithread"))]
 pub static mut DB_CONNECTION: Option<rusqlite::Connection> = None;
+/// The thread-safe vatiant for the main object in this library
 #[cfg(feature = "multithread")]
 pub static mut DB_CONNECTION: Option<Pool<SqliteConnectionManager>> = None;
 
 /// Initializes the dynamic library. MUST BE CALLED BEFORE ANY OTHER FUNCTION.
 ///
 /// What this funciton does is that it effectively creates all of the necessary global variables
-/// (only DB_CONNECTION at the moment). All of the global variables are of Result type and by
-/// default are set to Err(Uninitialized). If the function succeedes, it turns them into Ok() or
+/// (only DB_CONNECTION at the moment). All of the global variables are of Option type and by
+/// default are set to None. If the function succeedes, it turns them into Some() or
 /// whatever they are supposed to be
 ///
 /// # Arguments
@@ -366,17 +394,15 @@ fn gigachat_init(dbname: *const u8) -> i32 {
 
 /// Creates database at path `dbname`
 ///
-/// Creates every necessary table if they do not exist (may be used to fix integrity of database)
+/// Creates every necessary table if they do not exist (may be used to fix integrity)
 ///  
 /// # Arguments 
 /// None
 ///
 /// # Returns 
 /// * i32 ( = c_int ): success status.
-/// * * 0 = success
 /// * * any negative number = the i32 representation of fields in DbError enum
-/// * * any positive number = amount of errors occured duirng creating tables
-///     (this showing up is either FFI or library's fault)
+/// * * any positive number = amount of successfully created tables
 ///
 /// # Example
 /// ```cpp
@@ -406,7 +432,6 @@ fn gigachat_create_database() -> i32 {
         None => return DbError::Uninitialized as i32,
     };
 
-    let mut return_value = 0i32;
     let statements = &[ 
         sql::create::USERS_TABLE, 
         sql::create::ACCOUNTS_TABLE, 
@@ -422,12 +447,12 @@ fn gigachat_create_database() -> i32 {
         Err(_) => return DbError::ConnectionPoolError as i32,
     };
 
+    let mut return_value = 0i32;
     for i in statements {
-        if db.execute_batch(i).is_err() {
+        if db.execute_batch(i).is_ok() {
             return_value += 1;
         }
     }
-
     return return_value;
 }
 
@@ -444,17 +469,17 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
 
 /// The function to delete all tables from the database, effectively clearing it up
 ///
-/// Note: This function does not clear local cached files!
+///
+/// Note: This function does not clear local cached files! (as if you have alreadyy added support
+/// for this LMAO)
 ///
 /// # Arguments
 /// None
 ///
 /// # Returns
 /// * i32 ( = c_char ): success status
-/// * * 0 = success
 /// * * any negative number = i32 representation of DbError enum
-/// * * any positive number = amount of tables that had errors in deletion (this indicates that there
-/// is a FFI or library's fault)
+/// * * any positive number = amount of successfully deleted tables
 ///
 /// # Example
 /// handling return value of the gigachat_clear_database function
@@ -497,16 +522,16 @@ fn gigachat_clear_database() -> i32 {
 
             transaction.set_drop_behavior(rusqlite::DropBehavior::Commit);
             
-            let mut error_count = 0i32;
+            let mut return_value = 0i32;
             for i in names {
                 let query = format!("{}{};", sql::misc::DROP, i);
-                if let Err(_e) = transaction.execute_batch(query.as_str()) {
-                    error_count += 1;
+                if transaction.execute_batch(query.as_str()).is_ok() {
+                    return_value += 1;
                 };
             }
 
             match transaction.commit() {
-                Ok(_) => error_count,
+                Ok(_) => return_value,
                 Err(_) => DbError::CoundNotEndTransaction as i32,
             }
         },
@@ -515,13 +540,19 @@ fn gigachat_clear_database() -> i32 {
 }
 
 
-/// Not FFI-compatible function to insert a single message into database and cache this statement.
+/// Not FFI-compatible function to insert a single message into database and cache the statement.
 ///
 /// Should not be used outside of library. Use `insert_messages_to_database` instead.
 ///
 /// # Arguments
 /// * db: mutable borrow of database connection
-/// * m: 
+/// * m: Message to be inserted
+///
+/// # Returns
+/// * Result<usize, rusqlite::error>
+/// * Ok(usize): amount of rows changed
+/// * Err(rusqlite::Error): Error propagation from rusqlite library
+///
 fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<usize, rusqlite::Error> {
     let mut result = 0usize;
     let trans = db.transaction()?;
@@ -532,6 +563,8 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
             m.channel,
             "unnamed channel",
         ])?;
+
+    // todo!("also insert users to the users table");
 
     if m.r#type & MessageType::TXT {
         let mut stmt = trans.prepare_cached(sql::insert::MESSAGE_DATA)?;
@@ -547,11 +580,7 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
     }
 
     if let MessageData::Media(media) = &m.data_media {
-        let mut stmt = trans.prepare_cached(sql::insert::MEDIA)?;
         todo!("ADD CHECK FOR Message::r#type");
-        stmt.execute(params![
-            
-        ])?;
     }
     else if let MessageData::MediaArray(array) = &m.data_media {
         todo!();
@@ -561,12 +590,12 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
     Ok(result)
 }
 
-/// A function to insert any amount ofmessages into a database
+/// A function to insert any amount of messages into a database
 ///
 /// # Arguments
-/// * mvec: message vector. A C-style array of `Message` structs that should be constructed in the
-/// language calling this library. must have no less than `len` valid Messages.
-/// * len ( in C: size_t): amount of messages in the array `mvec`. If mvec is a raw memory adderss,
+/// * mvec: message vector. A C-style array of `Message` structs that should be constructed on the
+/// user-side (the api treats memory as read-only). must have at least `len` valid Messages
+/// * len (in C: size_t): amount of messages in the array `mvec`. If mvec is a raw memory adderss (void pointer),
 /// the last message will be located at `mvec + (sizeof(Message) * (len-1))`
 ///
 /// # Returns
@@ -575,7 +604,7 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
 /// * any positive number = amount of inserted messages
 ///
 /// # Example
-/// <nothing here yet...>
+/// {{ nothing here yet... please forgive the developer, he gets no sleep at all :'( }}
 #[no_mangle]
 pub extern "C"
 fn gigachat_insert_messages(mvec: *const Message, len: usize) -> i32 {
