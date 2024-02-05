@@ -4,6 +4,8 @@ pub mod interface;
 pub mod testing {
     use std::ffi::CString;
     use std::time::SystemTime;
+    #[cfg(feature = "multithread")]
+    use std::thread::JoinHandle;
 
     use super::interface::*;
     use rand::Rng;
@@ -45,6 +47,26 @@ pub mod testing {
         };
         let messages = vec![m1];
         assert!(gigachat_insert_messages(messages.as_ptr(), messages.len()) >= 0);
+    }
+
+    // write a single message from multiple threads
+    #[cfg(feature = "multithread")]
+    #[test]
+    fn write_multithread() {
+        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr())) };
+        let mut threads: Vec<JoinHandle<_>> = vec![];
+        for i in 1..100 {
+            threads.push(std::thread::spawn( move || {
+                let mut gen = random::default(rand::thread_rng().gen());
+                let x = CString::new(format!("{} N. {} | {}", "multithread_write", i, gen.read_u64())).unwrap();
+                let m1 = gen_rand_msg(&mut gen, &x);
+                let messages = vec![m1];
+                assert_eq!(gigachat_insert_messages(messages.as_ptr(), messages.len()), 1);
+            }));
+        }
+        for t in threads {
+            t.join().unwrap();
+        }
     }
 
     // write messages one-by-one in a loop

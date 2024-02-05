@@ -15,6 +15,11 @@
 use std::ops;
 
 // Cargo dependencies
+#[cfg(feature = "multithread")]
+use {
+    r2d2::Pool,
+    r2d2_sqlite::SqliteConnectionManager,
+};
 use rusqlite::{self, params};
 
 use self::common::ptr_to_str;
@@ -184,10 +189,10 @@ pub struct MediaCoordinates {
 /// struct. It may store path to thumbnain (preview) of the image/audio/any other media type.
 ///
 /// For example, if a Media entry is a voice message, the struct will be initialized as following:
-/// ```rust
+/// <code class="language-rust">
 /// // show there is no preview for audio message (however there can be one)
 /// Media{MediaType::AUD, "~/.local/...", std::ptr::null(), {0,0,1,1}}
-/// ```
+/// </code>
 ///
 #[repr(C)]
 #[derive(Debug)]
@@ -265,6 +270,7 @@ pub struct Message {
 #[repr(i32)]
 pub enum DbError {
     UnknownError = -255,
+    ConnectionPoolError = -10,
     SqliteFailure = -9,
     AlreadyInitialized = -8,
     Uninitialized = -7,
@@ -278,13 +284,25 @@ pub enum DbError {
 
 
 /// A function to open database
+#[cfg(not(feature = "multithread"))]
 fn open_db(path: *const u8) -> Result<rusqlite::Connection, DbError> {
     let dbname = ptr_to_str(path).map_err(|_| DbError::InvalidCString)?;
     rusqlite::Connection::open(dbname).map_err(|_| DbError::CouldNotOpen)
 }
 
+
+/// A function to open database
+#[cfg(feature = "multithread")]
+fn open_db(path: *const u8) -> Result<SqliteConnectionManager, DbError> {
+    let dbname = ptr_to_str(path).map_err(|_| DbError::InvalidCString)?;
+    Ok(SqliteConnectionManager::file(dbname))
+}
+
 /// The main object for this shared object. Important: not thread-safe!
+#[cfg(not(feature = "multithread"))]
 pub static mut DB_CONNECTION: Option<rusqlite::Connection> = None;
+#[cfg(feature = "multithread")]
+pub static mut DB_CONNECTION: Option<Pool<SqliteConnectionManager>> = None;
 
 /// Initializes the dynamic library. MUST BE CALLED BEFORE ANY OTHER FUNCTION.
 ///
@@ -326,7 +344,21 @@ fn gigachat_init(dbname: *const u8) -> i32 {
         return DbError::AlreadyInitialized as i32;
     }
     DB_CONNECTION = match open_db(dbname) {
-        Ok(db) => Some(db),
+        Ok(db) => {
+            #[cfg(not(feature = "multithread"))]
+            {
+                Some(db)
+            }
+            #[cfg(feature = "multithread")]
+            {
+                let x = Pool::new(db);
+                if x.is_ok() {
+                    Some(x.unwrap())
+                } else {
+                    return DbError::CouldNotOpen as i32;
+                }
+            }
+        },
         Err(e) => return e as i32,
     };
     0
@@ -383,7 +415,13 @@ fn gigachat_create_database() -> i32 {
         sql::create::CONFIG_TABLE,
         sql::create::MEDIA_LINK_TABLE,
     ];
-    
+
+    #[cfg(feature = "multithread")]
+    let db = match db.get() {
+        Ok(c) => c,
+        Err(_) => return DbError::ConnectionPoolError as i32,
+    };
+
     for i in statements {
         if db.execute_batch(i).is_err() {
             return_value += 1;
@@ -443,6 +481,11 @@ pub extern "C"
 fn gigachat_clear_database() -> i32 {
     match unsafe {DB_CONNECTION.as_mut()} {
         Some(mut db) => {
+            #[cfg(feature = "multithread")]
+            let mut db = match db.get() {
+                Ok(c) => c,
+                Err(_) => return DbError::ConnectionPoolError as i32,
+            };
             let names: Vec<String> = match load_names(&mut db){
                 Ok(name) => name,
                 Err(error) => return error,
@@ -459,8 +502,6 @@ fn gigachat_clear_database() -> i32 {
                 let query = format!("{}{};", sql::misc::DROP, i);
                 if let Err(_e) = transaction.execute_batch(query.as_str()) {
                     error_count += 1;
-                    #[cfg(test)]
-                    dbg!(_e);
                 };
             }
 
@@ -481,7 +522,8 @@ fn gigachat_clear_database() -> i32 {
 /// # Arguments
 /// * db: mutable borrow of database connection
 /// * m: 
-fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<(), rusqlite::Error> {
+fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<usize, rusqlite::Error> {
+    let mut result = 0usize;
     let trans = db.transaction()?;
 
     // todo!("load channel if it does not exist");
@@ -493,16 +535,17 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
 
     if m.r#type & MessageType::TXT {
         let mut stmt = trans.prepare_cached(sql::insert::MESSAGE_DATA)?;
-        stmt.execute(params![
+        let exec_result = stmt.execute(params![
              m.channel, 
              m.sender, 
              m.time, 
              m.time_ns, 
              m.r#type, 
              ptr_to_str(m.data_text as *const u8)?
-        ])?;
+        ]);
+        if let Ok(count) = exec_result { result += count };
     }
-    #[allow(unused, unreachable_code)]
+
     if let MessageData::Media(media) = &m.data_media {
         let mut stmt = trans.prepare_cached(sql::insert::MEDIA)?;
         todo!("ADD CHECK FOR Message::r#type");
@@ -515,7 +558,7 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
     }
     
     trans.commit()?;
-    Ok(())
+    Ok(result)
 }
 
 /// A function to insert any amount ofmessages into a database
@@ -537,11 +580,17 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
 pub extern "C"
 fn gigachat_insert_messages(mvec: *const Message, len: usize) -> i32 {
     match unsafe { DB_CONNECTION.as_mut() } {
-        Some(mut connection) => {
-            let mut count = 0;
+        Some(mut db) => {
+            let mut count = 0i32;
+            #[cfg(feature = "multithread")]
+            let mut db = match db.get() {
+                Ok(c) => c,
+                Err(_) => return DbError::ConnectionPoolError as i32,
+            };
+
             for i in unsafe { std::slice::from_raw_parts(mvec, len) } {
-                match insert_single_message(&mut connection, i) {
-                    Ok(_) => count += 1, 
+                match insert_single_message(&mut db, i) {
+                    Ok(c) => count += c as i32,
                     Err(e) => match e {
                         rusqlite::Error::SqliteFailure(_, _) => return DbError::SqliteFailure as i32,
                         _ => return DbError::UnknownError as i32,
@@ -554,23 +603,17 @@ fn gigachat_insert_messages(mvec: *const Message, len: usize) -> i32 {
     }
 }
 
-// cursed
 
-// /// Frees array of messages allocated by the API 
-// #[no_mangle]
-// pub unsafe extern "C"
-// fn gigachat_free(ptr: *mut Message) {
-//     if ptr.is_null() {
-//         return;
-//     }
-//     drop::<Box::<[Message]>>(Box::from_raw(ptr));
-// }
+/// Frees array of messages allocated by the API 
+#[no_mangle]
+pub unsafe extern "C"
+fn gigachat_free(ptr: *mut Message) {
+    todo!()
+}
 
-// /// A function to read messages from database
-// #[no_mangle]
-// pub extern "C"
-// fn gigachat_get_messages(channel: u64, amount: usize) -> *mut Message {
-//     let mut arr = vec![];
-//     arr.as_mut_ptr(), arr.len()
-//     std::ptr::null_mut()
-// }
+/// A function to read messages from database
+#[no_mangle]
+pub extern "C"
+fn gigachat_get_messages(channel: u64, amount: usize) -> *mut Message {
+    todo!()
+}

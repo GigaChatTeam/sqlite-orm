@@ -1,18 +1,23 @@
 [package]
-name = "message-db-interface"
+name = "gigachat-orm"
 version = "0.0.0"
 edition = "2021"
 
 [lib]
 name = "msgdb"
-crate-type = ["cdylib", "staticlib"]
+crate-type = ["rlib", "cdylib", "staticlib"]
+
+[features]
+multithread = ["r2d2", "r2d2_sqlite"]
 
 [dependencies]
-bitflags = "2.4.1"
-cpp = "0.5.9"
 microserde = "0.1.13"
 rusqlite = "0.30.0"
 ureq = "2.9.1"
+
+r2d2 = { version = "0.8.10", optional = true }
+r2d2_sqlite = { version = "0.23.0",  optional = true }
+
 
 [dev-dependencies]
 rand = "0.8.5"
