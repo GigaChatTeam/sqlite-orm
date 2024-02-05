@@ -6,8 +6,11 @@ To provide easy way for clients to cache messages
 ## Implementation
 Rust + SQLite
 ## Branches
-* `master`:         Currently has NON-THREAD-SAFE implementation!
-* `thread-safe`:    I am working on adding thread-safety there. Changes made to master will be merged and patched there.
+~~* `master`:         Currently has NON-THREAD-SAFE implementation!~~
+~~* `thread-safe`:    I am working on adding thread-safety there. Changes made to master will be merged and patched there.~~
+* `master`:         The main working branch, Thread-safe API was merged into master
+## (Rust) features
+* `multithread`: support for calling this library from multiple threads. Without this feature multithreading causes undefined behavior
 ## Usage
 You can call the API functions from any language that supports C functions (extern "C" / cdylib / CDLL / C-FFI)
 ## Adding support for other languages
