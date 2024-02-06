@@ -327,9 +327,11 @@ fn open_db(path: *const u8) -> Result<SqliteConnectionManager, DbError> {
 /// The main object for this library. Important: not thread-safe! Thread-safe variant is presented
 /// below under #[cfg(feature = "multithread")]
 #[cfg(not(feature = "multithread"))]
+/// cbindgen:ignore
 pub static mut DB_CONNECTION: Option<rusqlite::Connection> = None;
 /// The thread-safe vatiant for the main object in this library
 #[cfg(feature = "multithread")]
+/// cbindgen:ignore
 pub static mut DB_CONNECTION: Option<Pool<SqliteConnectionManager>> = None;
 
 /// Initializes the dynamic library. MUST BE CALLED BEFORE ANY OTHER FUNCTION.
@@ -646,3 +648,13 @@ pub extern "C"
 fn gigachat_get_messages(channel: u64, amount: usize) -> *mut Message {
     todo!()
 }
+
+#[cfg(feature = "multithread")]
+#[no_mangle]
+pub extern "C"
+fn test(_a: i32) {}
+
+#[cfg(not(feature = "multithread"))]
+#[no_mangle]
+pub extern "C"
+fn test(_a: i32, _b: f64) {}

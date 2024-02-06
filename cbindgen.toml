@@ -1,0 +1,71 @@
+language = "C"
+
+# Meta
+header = ""
+trailer = ""
+include_version = true
+
+# Include optoins
+includes = []
+sys_includes = []
+after_includes = ""
+include_guard = "GIGACHAT_SQLITE_ORM"
+
+# Style options
+# style = "Tag"
+braces = "SameLine"
+line_length = 120
+line_endings = "CRLF"
+tab_width = 8
+
+# Documentation options
+documentation = true
+documentation_style = "C99"
+documentation_length = "Short"
+
+# Just in case
+[macro_expansion]
+bitflags = true
+
+# Documentation for cbindgen is fucked man
+[parse]
+parse_deps = false
+include = []
+exclude = []
+clean = true
+extra_bindings = []
+
+# leaving options just in case
+[fn]
+prefix = ""
+postfix = ""
+args = "Horizontal"
+# must_use = false
+
+# Writing out explicitly (just in case, as well)
+[struct]
+derive_constructor = false # don't need 
+derive_eq = false
+derive_neq = false
+derive_lt = false
+derive_lte = false
+derive_gt = false
+derive_gte = false
+derive_ostream = false
+
+# Since the bindings are for C, use prefix_with_names. To avoid name collisions.
+[enum]
+prefix_with_name = true
+# prefix_with_name = false
+derive_helper_methods = true
+enum_class = false # since we already use prefix_with_name
+
+# yes please, use C++ features
+[const]
+allow_static_const = true
+allow_constexpr = true 
+
+# Conventions
+[defines]
+"feature = multithread" = "MULTITHREAD"
+
