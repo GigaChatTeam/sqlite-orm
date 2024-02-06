@@ -12,7 +12,7 @@ use std::str::Utf8Error;
 /// result of CStr::to_str 
 ///
 pub fn ptr_to_str(ptr: *const u8) -> Result<&'static str, Utf8Error> {
-    let ptr: &CStr = unsafe { CStr::from_ptr(ptr as *const i8) };
+    let ptr: &CStr = unsafe { CStr::from_ptr(ptr as *const u8) };
     ptr.to_str()
 }
 

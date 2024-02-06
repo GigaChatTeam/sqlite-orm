@@ -7,6 +7,7 @@
 //! so giving acces via json seems really stupid.
 //!
 
+/// cbindgen:ignore
 pub mod create {
     pub const USERS_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS users (
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS media_link (
 );"#;
 }
 
+/// cbindgen:ignore
 pub mod insert {
     pub const MESSAGE_DATA: &str = r#"
 INSERT OR IGNORE 
@@ -77,6 +79,7 @@ INSERT OR IGNORE
 "#;
 }
 
+/// cbindgen:ignore
 pub mod misc {
     pub const GET_TABLE_NAMES: &str = r"SELECT name FROM sqlite_master WHERE type='table'";
     pub const DROP: &str = "DROP TABLE ";
