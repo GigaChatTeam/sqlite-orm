@@ -2,7 +2,7 @@ pub mod interface;
 
 #[cfg(test)]
 pub mod testing {
-    use std::ffi::CString;
+    use std::ffi::{CString, c_char};
     use std::time::SystemTime;
     #[cfg(feature = "multithread")]
     use std::thread::JoinHandle;
@@ -13,15 +13,15 @@ pub mod testing {
 
     #[test]
     fn create_database() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr())) };
-        assert_eq!(gigachat_create_database(), 0);
+        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char as *const c_char)) };
+        assert_eq!(gigachat_create_database(), 6);
     }
 
     // helper function
     fn gen_rand_msg(gen: &mut random::Xorshift128Plus, x: &CString) -> Message {
         Message {
             r#type: MessageType::TXT as u32,
-            data_text: x.as_ptr(),
+            data_text: x.as_ptr() as *const c_char,
             data_media: MessageData::Nomedia(()),
             channel: gen.read_u64() % 100,
             sender: gen.read_u64() % 100,
@@ -34,10 +34,10 @@ pub mod testing {
     // write a single message
     #[test]
     fn write_1() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr())) };
+        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char)) };
         let m1: Message = Message {
             r#type: MessageType::TXT as u32,
-            data_text: "string\0".as_ptr() as *const i8,
+            data_text: "string\0".as_ptr() as *const c_char as *const i8,
             data_media: MessageData::Nomedia(()),
             channel: 0,
             sender: 0,
@@ -53,7 +53,7 @@ pub mod testing {
     #[cfg(feature = "multithread")]
     #[test]
     fn write_multithread() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr())) };
+        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char)) };
         let mut threads: Vec<JoinHandle<_>> = vec![];
         for i in 1..100 {
             threads.push(std::thread::spawn( move || {
@@ -72,7 +72,7 @@ pub mod testing {
     // write messages one-by-one in a loop
     #[test]
     fn write_loop() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr())) };
+        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char)) };
         let mut amount = 0i32;
         let mut gen = random::default(
             SystemTime::now()
@@ -92,7 +92,7 @@ pub mod testing {
     // write messages as an array
     #[test]
     fn write_array() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr())) };
+        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char)) };
         let mut gen = random::default(rand::thread_rng().gen());
         let x = CString::new(format!("{} | {}", "array_write", gen.read_u64())).unwrap();
         let messages: Vec<Message> = std::iter::repeat_with( || gen_rand_msg(&mut gen, &x) )
@@ -103,7 +103,7 @@ pub mod testing {
 
     #[test]
     fn clear_database() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr())) };
+        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char)) };
         assert_eq!(gigachat_clear_database(), 0);
     }
 }

@@ -1,9 +1,14 @@
-
+/* TODO: put license information */
 
 #ifndef GIGACHAT_SQLITE_ORM
 #define GIGACHAT_SQLITE_ORM
 
+#pragma once
+
 /* Generated with cbindgen:0.26.0 */
+
+/* THIS FILE IS GENERATED AUTOMATICALLY WITH CBINDGEN. DO NOT EDIT MANUALLY. */
+/* ANY CHANGES WILL BE OVERRIDEN. PLEASE MODIFY `build.rs` TO APPLY PATCHES. */
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -21,6 +26,8 @@ typedef enum MediaType {
         MediaType_GIF,
         // A piece of audio
         MediaType_AUD,
+        // Must be last for serialization purposes
+        MediaType_Sentinel,
 } MediaType;
 
 // A struct to reresent coordinates of a Media entry in MediaGroup
@@ -58,6 +65,8 @@ typedef enum MessageData_Tag {
         MessageData_Nomedia,
         MessageData_Media,
         MessageData_MediaArray,
+        // Must be last for serialization purposes
+        MessageData_Sentinel,
 } MessageData_Tag;
 
 typedef struct MessageData {
@@ -80,7 +89,7 @@ typedef struct Message {
         // type of the message. use MessageType enum with BitAnd (&) to represent the contents
         uint32_t type;
         // data_text is used to store raw string that the client receives with the message. can be
-        const int8_t *data_text;
+        const char *data_text;
         // data_media is either a Media struct or c-style array of Media structs.
         struct MessageData data_media;
         // ID of an author of the message
@@ -96,7 +105,7 @@ typedef struct Message {
 } Message;
 
 // Initializes the dynamic library. MUST BE CALLED BEFORE ANY OTHER FUNCTION.
- int32_t gigachat_init(const uint8_t *dbname) ;
+ int32_t gigachat_init(const char *dbname) ;
 
 // Creates database at path `dbname`
  int32_t gigachat_create_database(void) ;
@@ -121,7 +130,7 @@ typedef struct Message {
  void test(int32_t _a, double _b) ;
 #endif
 
- void load_channels(uint64_t uid, const uint8_t *token, const uint8_t *dlb_url) ;
+ void load_channels(uint64_t uid, const char *token, const char *dlb_url) ;
 
 #endif /* GIGACHAT_SQLITE_ORM */
 

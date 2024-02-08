@@ -1,4 +1,4 @@
-use std::ffi::{CStr, CString, NulError};
+use std::ffi::{CStr, CString, NulError, c_char};
 use std::str::Utf8Error;
 
 /// Converts pointer to unowned string
@@ -11,8 +11,10 @@ use std::str::Utf8Error;
 /// # Returns
 /// result of CStr::to_str 
 ///
-pub fn ptr_to_str(ptr: *const u8) -> Result<&'static str, Utf8Error> {
-    let ptr: &CStr = unsafe { CStr::from_ptr(ptr as *const i8) };
+pub fn ptr_to_str(ptr: *const c_char) -> Result<&'static str, Utf8Error> {
+    // bro relly? CStr::from_ptr is architecture-dependent? Okay rust this is funny 
+    // TODO: change every pointer use to c_char because something funny might happen
+    let ptr: &CStr = unsafe { CStr::from_ptr(ptr as *const c_char) };
     ptr.to_str()
 }
 

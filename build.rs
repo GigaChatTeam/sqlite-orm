@@ -9,9 +9,10 @@ extern crate cbindgen;
 
 fn main() {
     let config = Config::from_file("cbindgen.toml").expect("no file `cbindgen.toml` found in working directory");
+    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").expect("???");
     if Builder::new()
         .with_config(config)
-        .with_crate(".")
+        .with_crate(crate_dir)
         .generate()
         .expect("could not generate config")
         .write_to_file("include/gigachat_orm.h") {

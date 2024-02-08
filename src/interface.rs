@@ -29,6 +29,7 @@
 
 // standard library
 use std::ops;
+use std::ffi::c_char;
 
 // Cargo dependencies
 #[cfg(feature = "multithread")]
@@ -268,7 +269,7 @@ pub struct Message {
     pub r#type: u32,
     /// data_text is used to store raw string that the client receives with the message. can be
     /// empty.
-    pub data_text: *const i8,
+    pub data_text: *const c_char,
     /// data_media is either a Media struct or c-style array of Media structs.
     pub data_media: MessageData,
     /// ID of an author of the message
@@ -312,14 +313,14 @@ pub enum DbError {
 
 /// A function to open database
 #[cfg(not(feature = "multithread"))]
-fn open_db(path: *const u8) -> Result<rusqlite::Connection, DbError> {
+fn open_db(path: *const c_char) -> Result<rusqlite::Connection, DbError> {
     let dbname = ptr_to_str(path).map_err(|_| DbError::InvalidCString)?;
     rusqlite::Connection::open(dbname).map_err(|_| DbError::CouldNotOpen)
 }
 
 /// A function to open database (multithread variant)
 #[cfg(feature = "multithread")]
-fn open_db(path: *const u8) -> Result<SqliteConnectionManager, DbError> {
+fn open_db(path: *const c_char) -> Result<SqliteConnectionManager, DbError> {
     let dbname = ptr_to_str(path).map_err(|_| DbError::InvalidCString)?;
     Ok(SqliteConnectionManager::file(dbname))
 }
@@ -369,7 +370,7 @@ pub static mut DB_CONNECTION: Option<Pool<SqliteConnectionManager>> = None;
 /// ```
 #[no_mangle]
 pub unsafe extern "C"
-fn gigachat_init(dbname: *const u8) -> i32 {
+fn gigachat_init(dbname: *const c_char) -> i32 {
     if DB_CONNECTION.is_some() {
         return DbError::AlreadyInitialized as i32;
     }
@@ -451,8 +452,9 @@ fn gigachat_create_database() -> i32 {
 
     let mut return_value = 0i32;
     for i in statements {
-        if db.execute_batch(i).is_ok() {
-            return_value += 1;
+        match db.execute_batch(i) {
+            Ok(_) => { return_value += 1 },
+            Err(e) => { dbg!(e); },
         }
     }
     return return_value;
@@ -576,7 +578,7 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
              m.time, 
              m.time_ns, 
              m.r#type, 
-             ptr_to_str(m.data_text as *const u8)?
+             ptr_to_str(m.data_text)?
         ]);
         if let Ok(count) = exec_result { result += count };
     }

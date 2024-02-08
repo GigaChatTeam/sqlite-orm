@@ -1,9 +1,11 @@
 
 use ureq;
+use std::ffi::c_char;
 use super::common::ptr_to_str;
 
 #[no_mangle]
-pub extern "C" fn load_channels(uid: u64, token: *const u8, dlb_url: *const u8) {
+pub extern "C" 
+fn load_channels(uid: u64, token: *const c_char, dlb_url: *const c_char) {
     let url = std::format!(
             "{}?client={}&token={}", 
             ptr_to_str(dlb_url).unwrap(),

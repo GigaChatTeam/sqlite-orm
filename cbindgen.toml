@@ -1,11 +1,13 @@
 language = "C"
 
 # Meta
-header = ""
+header = "/* TODO: put license information */"
+autogen_warning =  "/* THIS FILE IS GENERATED AUTOMATICALLY WITH CBINDGEN. DO NOT EDIT MANUALLY. */\n/* ANY CHANGES WILL BE OVERRIDEN. PLEASE MODIFY `build.rs` TO APPLY PATCHES. */"
 trailer = ""
 include_version = true
 
 # Include optoins
+pragma_once = true
 includes = []
 sys_includes = []
 after_includes = ""
@@ -15,12 +17,12 @@ include_guard = "GIGACHAT_SQLITE_ORM"
 # style = "Tag"
 braces = "SameLine"
 line_length = 120
-line_endings = "CRLF"
+line_endings = "LF"
 tab_width = 8
 
 # Documentation options
 documentation = true
-documentation_style = "C99"
+documentation_style = "c99"
 documentation_length = "Short"
 
 # Just in case
@@ -28,6 +30,7 @@ documentation_length = "Short"
 bitflags = true
 
 # Documentation for cbindgen is fucked man
+# Edit: I've found it!!! https://github.com/mozilla/cbindgen/blob/master/docs.md
 [parse]
 parse_deps = false
 include = []
@@ -40,7 +43,7 @@ extra_bindings = []
 prefix = ""
 postfix = ""
 args = "Horizontal"
-# must_use = false
+must_use = "__attribute__((warn_unused))"
 
 # Writing out explicitly (just in case, as well)
 [struct]
@@ -55,6 +58,7 @@ derive_ostream = false
 
 # Since the bindings are for C, use prefix_with_names. To avoid name collisions.
 [enum]
+add_sentinel = true
 prefix_with_name = true
 # prefix_with_name = false
 derive_helper_methods = true
@@ -65,7 +69,11 @@ enum_class = false # since we already use prefix_with_name
 allow_static_const = true
 allow_constexpr = true 
 
-# Conventions
+# Why is this field documented so poorly, I've spend hours searching
+# for that document on github, docs on rust's site are broken man
+#
+# Apperantly you just copy-paste whatever the argument for cfg(), but 
+# then delete the quotes from feature name or targes_os name
 [defines]
 "feature = multithread" = "MULTITHREAD"
 
