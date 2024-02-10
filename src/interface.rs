@@ -49,7 +49,7 @@ mod helper_structs;
 pub mod sql;
 pub mod networking;
 pub mod common;
-
+mod urlbuilder;
 
 /// A Struct to represent a channel inside database. 
 ///

@@ -198,6 +198,7 @@ dependencies = [
  "random",
  "rusqlite",
  "ureq",
+ "url",
 ]
 
 [[package]]
