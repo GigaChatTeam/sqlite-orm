@@ -4,16 +4,22 @@ use microserde;
 use std::ffi::c_char;
 use ureq;
 
+
 #[no_mangle]
 pub extern "C" fn load_channels(uid: u64, token: *const c_char, dlb_url: *const c_char) {
+    //http://10.242.223.170:8084/user/@me/channels?client=5&token=Et9pMkeTo9AYVCeDmzEiLmaHxS5kxtvkqQAoXiGNnfR7nzX9&sort=activity&order=desc&meta=true
 	let url = UrlBuilder::new()
         .method("http")
-        .url("127.0.0.1")
+        .url("10.242.223.170")
         .port(8084)
-        .query("?index=a&penis=b")
-        .path("/lol/lmao")
-        .build();
-	let request = ureq::builder().build();
+        .query("?client=5&token=Et9pMkeTo9AYVCeDmzEiLmaHxS5kxtvkqQAoXiGNnfR7nzX9&sort=activity&order=desc&meta=true")
+        .path("/user/@me/channels")
+        .build()
+        .expect("?? why ??");
+    let request = ureq::request_url("GET", &url);
+    //
+    dbg!(request.call().unwrap().into_string().unwrap());
+
 }
 
 
