@@ -106,4 +106,10 @@ pub mod testing {
         unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char)) };
         assert_eq!(gigachat_clear_database(), 0);
     }
+
+    #[test] 
+    fn load_channels() {
+        crate::interface::networking::load_channels(0, std::ptr::null(), std::ptr::null());
+    }
+
 }

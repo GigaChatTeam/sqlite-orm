@@ -284,7 +284,8 @@ pub struct Message {
     pub reply_id: u64,
 }
 
-/// Enum to represent errors that might occur when calling functions from this module
+/// Enum to represent errors that might occur when calling functions from this module (database
+/// functions)
 ///
 /// This is not intended to be used as a return value directlry. Instead, this should be casted to
 /// i32 (c_int). It contains only negatuve values because positive are reserved.
@@ -297,16 +298,31 @@ pub struct Message {
 ///
 #[repr(i32)]
 pub enum DbError {
+    /// Unimplemented error handling
     UnknownError = -255,
-    ConnectionPoolError = -10,
-    SqliteFailure = -9,
-    AlreadyInitialized = -8,
-    Uninitialized = -7,
-    QueryError = -6,
+    /// This one will be returned if an underlying networking function return any error.
+    /// The error from there is not mapped in any way beacuse this should not ever happen
+    NetworkModuleError = -10,
+    /// Only when feature 'multithread' is enabled. This means that somehow connection pool could
+    /// Not read file or reate new file descriptor. 
+    ConnectionPoolError = -9,
+    /// SQLite statement failed to execute (runtime SQL error)
+    SqliteFailure = -8,
+    /// Only for init function. Means that function gigachat_init was called multiple times.
+    AlreadyInitialized = -7,
+    /// function gigachat_init was not called before using other database-related functions.
+    Uninitialized = -6,
+    /// SQL syntax error (malformed query or something). If it occurs with any function from this
+    /// library that does not involve you writing yout own SQL, please open an issue, it is
+    /// (probably) developer's fault.
     StatementError = -5,
+    /// `rusqlite::Connection::transaction` returned Err somehow
     CouldNotStartTransaction = -4,
+    /// `rusqlite::Transaction::commit()` returned Err somehow
     CoundNotEndTransaction = -3,
+    /// The C string could not be parsed into rust string (usually invalid UTF-8)
     InvalidCString = -2,
+    /// Could not open the database in the init function. 
     CouldNotOpen = -1,
 }
 
@@ -464,7 +480,7 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
     if let Ok(mut nm) = connection.prepare(sql::misc::GET_TABLE_NAMES) {
         match nm.query_map([], |name| name.get(0)) {
             Ok(map) => Ok(map.filter_map(|i| i.ok()).collect()),
-            Err(_) => return Err(DbError::QueryError as i32),
+            Err(_) => return Err(DbError::SqliteFailure as i32),
         }
     } else { 
         return Err(DbError::StatementError as i32) 

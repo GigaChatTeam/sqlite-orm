@@ -104,6 +104,34 @@ typedef struct Message {
         uint64_t reply_id;
 } Message;
 
+// A Struct to represent a channel inside database.
+typedef struct Channel {
+        // Unique identifier of the channel
+        uint64_t id;
+        // Title of the channel (C-string)
+        const uint8_t *title;
+        // Description (optional, should be a null pointer in case is empty)
+        const uint8_t *description;
+        // Profiule picture for the channel (optional, null pointer in case it is not present)
+        const uint8_t *avatar;
+        // Creation time (UNIX seconds)
+        uint64_t created;
+        // Creation time in nanoseconds (actual_nanoseconds - seconds*10^9: nanoseconds without whole
+        uint32_t created_ns;
+        // Whether the listening to it is enabled (`listening` in context of GigaChat means that you
+        bool enabled;
+} Channel;
+
+// A c-style array with Channels.
+typedef struct ChannelArray {
+        // Size of the array
+        uintptr_t size;
+        // Size allocated by rust's Vec. You can safely construct this much elements, but why would
+        uintptr_t alloc;
+        // pointer to the element at index 0
+        struct Channel *data;
+} ChannelArray;
+
 // Initializes the dynamic library. MUST BE CALLED BEFORE ANY OTHER FUNCTION.
  int32_t gigachat_init(const char *dbname) ;
 
@@ -130,7 +158,8 @@ typedef struct Message {
  void test(int32_t _a, double _b) ;
 #endif
 
- void load_channels(uint64_t uid, const char *token, const char *dlb_url) ;
+// a function to load channels with /user/<UID>/channels server request
+ struct ChannelArray load_channels(uint64_t uid, const char *token, const char *dlb_url) ;
 
 #endif /* GIGACHAT_SQLITE_ORM */
 
