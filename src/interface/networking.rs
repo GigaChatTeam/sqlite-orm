@@ -46,7 +46,7 @@ mod gc_json {
 	}
 }
 
-const MAX_CHANNELS: u32 = 100;
+const MAX_CHANNELS: u32 = 150;
 
 #[repr(i32)]
 pub enum NwError {
@@ -73,6 +73,25 @@ pub struct ChannelArray {
 	pub data: *mut Channel,
 }
 
+fn load_from_server<T>(builder: UrlBuilder) -> Result<T, NwError> 
+    where T: Deserialize {
+	let url = UrlBuilder::new()
+        .scheme("http")
+        .url(match ptr_to_str(dlb_url){
+            Ok(str) => str,
+            Err(_) => return ChannelArray{size: 0, alloc: 0, data: std::ptr::null_mut()},
+        })
+        .port(8084)
+        .param("client", "5")
+        .param("token", "Et9pMkeTo9AYVCeDmzEiLmaHxS5kxtvkqQAoXiGNnfR7nzX9")
+        .param("sort", "id")
+        .param("order", "asc")
+        .param("meta", "true")
+        .path("/user/@me/channels")
+        .build()
+        .expect("?? why ??");
+}
+
 /// a function to load channels with /user/<UID>/channels server request
 ///
 /// # Arguments
@@ -87,17 +106,6 @@ pub extern "C" fn load_channels(
 	token: *const c_char,
 	dlb_url: *const c_char,
 ) -> ChannelArray {
-	let url = UrlBuilder::new()
-        .method("http")
-        .url(match ptr_to_str(dlb_url){
-            Ok(str) => str,
-            Err(_) => return ChannelArray{size: 0, alloc: 0, data: std::ptr::null_mut()},
-        })
-        .port(8084)
-        .query("client=5&token=Et9pMkeTo9AYVCeDmzEiLmaHxS5kxtvkqQAoXiGNnfR7nzX9&sort=id&order=asc&meta=true")
-        .path("/user/@me/channels")
-        .build()
-        .expect("?? why ??");
 
 	let mut all_channels: Vec<Channel> = Vec::new();
 	loop {
