@@ -14,8 +14,6 @@
 //! * this is fucking unreadable
 //!
 
-use std::default;
-
 use url;
 
 /// Builder for `Url` from `url` crate. For internal use only.
@@ -77,15 +75,19 @@ impl UrlBuilder {
 	}
     pub fn query_pairs(self, pairs: Vec<(String, String)>) -> Self {
         match self {
-            Self::Url(mut url) => Url(url.query_pairs_mut().extend_pairs(pairs.into_iter())),
-            None => self,
-        }
+            Self::Url(mut url) => {
+                url.query_pairs_mut().extend_pairs(pairs.into_iter());
+            }
+            Self::None => return self,
+        };
+        self
     }
     pub fn param(self, key: &str, value: &str) -> Self {
         match self {
-            Self::Url(mut url) => Self::Url(url.query_pairs_mut().append_pair(key, value)), 
-            None => self,
-        }
+            Self::Url(mut url) => url.query_pairs_mut().append_pair(key, value), 
+            Self::None => return self,
+        };
+        self
     }
     pub fn build(self) -> Option<url::Url> {
         match self {
@@ -93,7 +95,7 @@ impl UrlBuilder {
             Self::None => Option::<url::Url>::None,
         }
     }
-    builder_func_result!(scheme, set_scheme, method, &str);
+    builder_func_result!(scheme, set_scheme, scheme, &str);
     builder_func_result!(url, set_host, Some(url), &str);
     builder_func_result!(port, set_port, Some(port), u16);
     builder_func!(path, set_path, path);
