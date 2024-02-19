@@ -4,7 +4,7 @@ version = "0.0.0"
 edition = "2021"
 
 [lib]
-name = "msgdb"
+name = "gigachat_sqlite"
 crate-type = ["cdylib"]
 
 [features]

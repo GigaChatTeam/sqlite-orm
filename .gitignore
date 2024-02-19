@@ -1,3 +1,13 @@
+# testing
 *.db
+
+# cargo
 target/
 Cargo.lock
+
+# cmake
+CMakeFiles/
+CMakeCache*
+*.cmake
+Makefile
+

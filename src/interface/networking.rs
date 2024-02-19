@@ -1,4 +1,3 @@
-#![feature(vec_into_raw_parts)]
 use crate::interface::common::ptr_to_str;
 use crate::interface::urlbuilder::UrlBuilder;
 
@@ -52,7 +51,7 @@ pub enum NwError {
 	/// Unimplemented error handling
 	UnknownError = -255,
     /// If server returned Invalid UTF-8 string
-    InvalidUTF8
+    InvalidUTF8,
 	/// If something failed on transport-level (e.g. dns lookup failure or network is unreachable)
 	ConnectionError = -5,
 	/// Generic error
