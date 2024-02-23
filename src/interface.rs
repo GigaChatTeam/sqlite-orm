@@ -691,9 +691,27 @@ fn gigachat_get_messages(channel: u64, amount: usize) -> *mut Message {
 #[cfg(feature = "multithread")]
 #[no_mangle]
 pub extern "C"
-fn test(_a: i32) {}
+fn test(_a: i32) {
+    println!("this is rust, actually");
+    for _ in 0..100 {
+        println!("{_a}")
+    }
+    panic!();
+}
 
 #[cfg(not(feature = "multithread"))]
 #[no_mangle]
 pub extern "C"
-fn test(_a: i32, _b: f64) {}
+fn test(_a: i32, _b: f64) {
+    for _ in 0..100 {
+        println!("{_a} {_b}")
+    }
+
+}
+
+#[no_mangle]
+pub extern "C" 
+fn test_rust_dynamic_library() {
+    println!("THIS IS RUUUUUUST");
+}
+

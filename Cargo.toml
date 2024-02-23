@@ -1,11 +1,12 @@
 [package]
-name = "gigachat-orm"
+name = "gigachat-sqlite"
 version = "0.0.0"
+license = "LGPL"
 edition = "2021"
 
 [lib]
 name = "gigachat_sqlite"
-crate-type = ["cdylib"]
+crate-type = ["staticlib", "cdylib"]
 
 [features]
 multithread = ["r2d2", "r2d2_sqlite"]

@@ -12,6 +12,7 @@ includes = []
 sys_includes = []
 after_includes = ""
 include_guard = "GIGACHAT_SQLITE_ORM"
+cpp_compat = true # I CAN'T BELIEVE THAT I SPENT 3 FUCKING HOURS-... whatever
 
 # Style options
 # style = "Tag"

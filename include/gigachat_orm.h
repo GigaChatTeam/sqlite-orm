@@ -132,6 +132,10 @@ typedef struct ChannelArray {
         struct Channel *data;
 } ChannelArray;
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 // Initializes the dynamic library. MUST BE CALLED BEFORE ANY OTHER FUNCTION.
  int32_t gigachat_init(const char *dbname) ;
 
@@ -158,8 +162,14 @@ typedef struct ChannelArray {
  void test(int32_t _a, double _b) ;
 #endif
 
+ void test_rust_dynamic_library(void) ;
+
 // a function to load channels with /user/<UID>/channels server request
  struct ChannelArray load_channels(uint64_t uid, const char *token, const char *dlb_url) ;
+
+#ifdef __cplusplus
+} // extern "C"
+#endif // __cplusplus
 
 #endif /* GIGACHAT_SQLITE_ORM */
 
