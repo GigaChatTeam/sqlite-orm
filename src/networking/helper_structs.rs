@@ -24,8 +24,8 @@ use microserde::{Serialize, Deserialize};
 
 use std::ptr::null as nullptr;
 
-use crate::interface::common::*;
-use crate::interface;
+use crate::common::*;
+use crate::database::structs;
 
 
 trait IntoCStyle<T> {
@@ -43,9 +43,9 @@ pub struct ChannelDeser {
     enabled: bool,
 } 
 
-impl IntoCStyle<interface::Channel> for ChannelDeser {
-    fn into_c(&self) -> interface::Channel {
-        interface::Channel { 
+impl IntoCStyle<structs::Channel> for ChannelDeser {
+    fn into_c(&self) -> structs::Channel {
+        structs::Channel { 
             id: self.id,
             title: str_to_ptr(self.title.clone()).unwrap(),
             description: self.description.clone()

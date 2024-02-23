@@ -20,7 +20,9 @@
 */
 
 #![feature(vec_into_raw_parts)]
-pub mod interface;
+pub mod database;
+pub mod networking;
+pub mod common;
 
 #[cfg(test)]
 pub mod testing {
@@ -29,7 +31,7 @@ pub mod testing {
     #[cfg(feature = "multithread")]
     use std::thread::JoinHandle;
 
-    use super::interface::*;
+    use super::database::*;
     use rand::Rng;
     use random::{self, Source};
 
@@ -131,7 +133,7 @@ pub mod testing {
 
     #[test] 
     fn load_channels() {
-        crate::interface::networking::load_channels(0, std::ptr::null(), std::ptr::null());
+        super::networking::load_channels(0, std::ptr::null(), std::ptr::null());
     }
 
 }

@@ -19,8 +19,10 @@
    ----------------------------------------------------------------------------
 */
 
-use crate::interface::common::ptr_to_str;
-use crate::interface::urlbuilder::UrlBuilder;
+mod urlbuilder;
+mod helper_structs;
+
+use crate::common::ptr_to_str;
 
 // renamed to differentiate between my json module (prefixe with gc_) and microserde's json module (prefixed with ms_)
 use microserde::json as ms_json;
@@ -29,7 +31,8 @@ use microserde::{Deserialize, Serialize};
 use std::ffi::c_char;
 use ureq;
 
-use super::Channel;
+use crate::database::structs;
+use urlbuilder::UrlBuilder;
 
 /// non-public module that contains structs for json-parsing
 ///
@@ -92,7 +95,7 @@ pub enum StatusAndNwError  {
     Status(u16),
 }
 
-/// A c-style array with Channels.
+/// A c-style array with structs::Channels.
 ///
 /// # Note
 /// should be deallocated in rust, like everything in this codebase
@@ -108,7 +111,7 @@ pub struct ChannelArray {
 	/// The opnly reason to make this `pub` is that maybe someonw will find use case for this.
 	pub alloc: usize,
 	/// pointer to the element at index 0
-	pub data: *mut Channel,
+	pub data: *mut structs::Channel,
 }
 
 fn load_from_server<T>(builder: UrlBuilder) -> Result<T, StatusAndNwError>
@@ -175,13 +178,13 @@ pub extern "C" fn load_channels(
 		.path("/user/@me/channels")
 		.build()
 		.expect("?? why ??");
-	let mut all_channels: Vec<Channel> = Vec::new();
+	let mut all_channels: Vec<structs::Channel> = Vec::new();
 	loop {
 		let request = ureq::request_url("GET", &url);
 		let response = request.call().unwrap().into_string().unwrap();
 		let structure: gc_json::ChannelsResponse = ms_json::from_str(response.as_str()).unwrap();
-		all_channels.extend(structure.data.into_iter().map(|x| -> Channel {
-			Channel {
+		all_channels.extend(structure.data.into_iter().map(|x| -> structs::Channel {
+			structs::Channel {
 				id: x.id,
 				title: std::ptr::null_mut(),
 				description: std::ptr::null_mut(),
