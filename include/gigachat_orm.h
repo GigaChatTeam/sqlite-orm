@@ -154,14 +154,6 @@ extern "C" {
 // A function to read messages from database
  struct Message *gigachat_get_messages(uint64_t channel, uintptr_t amount) ;
 
-#if defined(MULTITHREAD)
- void test(int32_t _a) ;
-#endif
-
-#if !defined(MULTITHREAD)
- void test(int32_t _a, double _b) ;
-#endif
-
  void test_rust_dynamic_library(void) ;
 
 // a function to load channels with /user/<UID>/channels server request
