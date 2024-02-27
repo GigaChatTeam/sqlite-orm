@@ -49,7 +49,6 @@
 //!
 
 // standard library
-use std::ops;
 use std::ffi::c_char;
 
 // Cargo dependencies
@@ -60,7 +59,7 @@ use {
 };
 use rusqlite::{self, params};
 
-use crate::common::ptr_to_str;
+use crate::{common::ptr_to_str, networking};
 // use cpp;
 
 // public re-exports
@@ -128,7 +127,7 @@ pub static mut DB_CONNECTION: Option<Pool<SqliteConnectionManager>> = None;
 /// ```
 #[no_mangle]
 pub unsafe extern "C"
-fn gigachat_init(dbname: *const c_char) -> i32 {
+fn gigachatdb_init(dbname: *const c_char) -> i32 {
     if DB_CONNECTION.is_some() {
         return DbError::AlreadyInitialized as i32;
     }
@@ -187,7 +186,7 @@ fn gigachat_init(dbname: *const c_char) -> i32 {
 /// ```
 #[no_mangle]
 pub extern "C"
-fn gigachat_create_database() -> i32 {
+fn gigachatdb_create_database() -> i32 {
     let db = match unsafe { DB_CONNECTION.as_mut() } {
         Some(a) => a,
         None => return DbError::Uninitialized as i32,
@@ -231,7 +230,6 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
 
 /// The function to delete all tables from the database, effectively clearing it up
 ///
-///
 /// Note: This function does not clear local cached files! (as if you have alreadyy added support
 /// for this LMAO)
 ///
@@ -265,9 +263,9 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
 ///
 #[no_mangle]
 pub extern "C" 
-fn gigachat_clear_database() -> i32 {
+fn gigachatdb_clear_database() -> i32 {
     match unsafe {DB_CONNECTION.as_mut()} {
-        Some(mut db) => {
+        Some(db) => {
             #[cfg(feature = "multithread")]
             let mut db = match db.get() {
                 Ok(c) => c,
@@ -301,6 +299,16 @@ fn gigachat_clear_database() -> i32 {
     }
 }
 
+fn gigachatdb_insert_channel(db: &mut rusqlite::Connection, c: &Channel) -> Result<usize, rusqlite::Error> {
+    let mut result = 0usize;
+    let trans = db.transaction()?;
+    
+    trans.prepare_cached(sql::insert::CHANNEL)?
+        .execute(params![
+        ]);
+
+    todo!()
+}
 
 /// Not FFI-compatible function to insert a single message into database and cache the statement.
 ///
@@ -320,7 +328,7 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
     let trans = db.transaction()?;
 
     // todo!("load channel if it does not exist");
-    trans.prepare_cached(sql::insert::MESSAGE_CHANNEL)?
+    trans.prepare_cached(sql::insert::MESSAGE)?
         .execute(params![
             m.channel,
             "unnamed channel",
@@ -329,7 +337,7 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
     // todo!("also insert users to the users table");
 
     if m.r#type & MessageType::TXT {
-        let mut stmt = trans.prepare_cached(sql::insert::MESSAGE_DATA)?;
+        let mut stmt = trans.prepare_cached(sql::insert::MESSAGE)?;
         let exec_result = stmt.execute(params![
              m.channel, 
              m.sender, 
@@ -369,9 +377,9 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
 /// {{ nothing here yet... please forgive the developer, he gets no sleep at all :'( }}
 #[no_mangle]
 pub extern "C"
-fn gigachat_insert_messages(mvec: *const Message, len: usize) -> i32 {
+fn gigachatdb_insert_messages(mvec: *const Message, len: usize) -> i32 {
     match unsafe { DB_CONNECTION.as_mut() } {
-        Some(mut db) => {
+        Some(db) => {
             let mut count = 0i32;
             #[cfg(feature = "multithread")]
             let mut db = match db.get() {
@@ -394,18 +402,17 @@ fn gigachat_insert_messages(mvec: *const Message, len: usize) -> i32 {
     }
 }
 
-
 /// Frees array of messages allocated by the API 
 #[no_mangle]
 pub unsafe extern "C"
-fn gigachat_free(ptr: *mut Message) {
+fn gigachatdb_free(ptr: *mut Message) {
     todo!()
 }
 
 /// A function to read messages from database
 #[no_mangle]
 pub extern "C"
-fn gigachat_get_messages(channel: u64, amount: usize) -> *mut Message {
+fn gigachatdb_get_messages(channel: u64, amount: usize) -> *mut Message {
     todo!()
 }
 
@@ -415,4 +422,3 @@ pub extern "C"
 fn test_rust_dynamic_library() {
     println!("THIS IS RUUUUUUST");
 }
-

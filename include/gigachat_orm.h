@@ -109,26 +109,23 @@ typedef struct Channel {
         // Unique identifier of the channel
         uint64_t id;
         // Title of the channel (C-string)
-        const uint8_t *title;
+        const char *title;
         // Description (optional, should be a null pointer in case is empty)
-        const uint8_t *description;
+        const char *description;
         // Profiule picture for the channel (optional, null pointer in case it is not present)
-        const uint8_t *avatar;
+        const char *avatar;
         // Creation time (UNIX seconds)
-        uint64_t created;
-        // Creation time in nanoseconds (actual_nanoseconds - seconds*10^9: nanoseconds without whole
-        uint32_t created_ns;
-        // Whether the listening to it is enabled (`listening` in context of GigaChat means that you
         bool enabled;
+        uint64_t permissions;
 } Channel;
 
 // A c-style array with Channels.
 typedef struct ChannelArray {
-        // Size of the array
-        uintptr_t size;
-        // Size allocated by rust's Vec. You can safely construct this much elements, but why would
-        uintptr_t alloc;
-        // pointer to the element at index 0
+        // Size of the array. If `arrays_store_errors` feature is enabled: if data is nullptr, size
+        intptr_t size;
+        // Size allocated by rust's Vec. You can safely construct this much
+        intptr_t alloc;
+        // pointer to the element at index 0. If nullptr, operation did not succed and `size` field
         struct Channel *data;
 } ChannelArray;
 
@@ -137,27 +134,27 @@ extern "C" {
 #endif // __cplusplus
 
 // Initializes the dynamic library. MUST BE CALLED BEFORE ANY OTHER FUNCTION.
- int32_t gigachat_init(const char *dbname) ;
+ int32_t gigachatdb_init(const char *dbname) ;
 
 // Creates database at path `dbname`
- int32_t gigachat_create_database(void) ;
+ int32_t gigachatdb_create_database(void) ;
 
 // The function to delete all tables from the database, effectively clearing it up
- int32_t gigachat_clear_database(void) ;
+ int32_t gigachatdb_clear_database(void) ;
 
 // A function to insert any amount of messages into a database
- int32_t gigachat_insert_messages(const struct Message *mvec, uintptr_t len) ;
+ int32_t gigachatdb_insert_messages(const struct Message *mvec, uintptr_t len) ;
 
 // Frees array of messages allocated by the API
- void gigachat_free(struct Message *ptr) ;
+ void gigachatdb_free(struct Message *ptr) ;
 
 // A function to read messages from database
- struct Message *gigachat_get_messages(uint64_t channel, uintptr_t amount) ;
+ struct Message *gigachatdb_get_messages(uint64_t channel, uintptr_t amount) ;
 
  void test_rust_dynamic_library(void) ;
 
-// a function to load channels with /user/<UID>/channels server request
- struct ChannelArray load_channels(uint64_t uid, const char *token, const char *dlb_url) ;
+// A function to load all channels with /user/&lt;UID&gt;/channels server request
+ struct ChannelArray gigachatnw_load_channels(uint64_t uid, const char *token, const char *dlb_url) ;
 
 #ifdef __cplusplus
 } // extern "C"

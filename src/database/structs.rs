@@ -14,19 +14,22 @@ pub struct Channel {
     /// Unique identifier of the channel
     pub id: u64,
     /// Title of the channel (C-string)
-    pub title: *const u8,
+    pub title: *const c_char,
     /// Description (optional, should be a null pointer in case is empty)
-    pub description: *const u8,
+    pub description: *const c_char,
     /// Profiule picture for the channel (optional, null pointer in case it is not present)
-    pub avatar: *const u8,
+    pub avatar: *const c_char,
     /// Creation time (UNIX seconds)
+    /*
     pub created: u64,
     /// Creation time in nanoseconds (actual_nanoseconds - seconds*10^9: nanoseconds without whole
     /// seconds)
     pub created_ns: u32,
     /// Whether the listening to it is enabled (`listening` in context of GigaChat means that you
     /// can read messages and load history from it)
+    */
     pub enabled: bool,
+    pub permissions: u64,
 }
 
 /// Flag enum to represent what a message contains

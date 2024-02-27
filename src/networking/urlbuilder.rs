@@ -39,14 +39,21 @@
 
 use url;
 
+#[derive(Clone)]
+pub struct UrlWithExtensions {
+    address: url::Url,
+    headers: Vec<(String, String)>,
+    method: Option<String>,
+}
+
+#[derive(Clone)]
 /// Builder for `Url` from `url` crate. For internal use only.
-pub enum UrlBuilder {
-	Url(url::Url),
+pub enum RequestBuilder {
+	Url(UrlWithExtensions),
 	None,
 }
 
-/// TODO: add `new` implementation for builder
-impl Default for UrlBuilder {
+impl Default for RequestBuilder {
 	fn default() -> Self {
 		Self::new()
 	}
@@ -61,7 +68,7 @@ macro_rules! builder_func {
 		pub fn $method_own(self, $method_own: &str) -> Self {
 			match self {
 				Self::Url(mut url) => {
-					url.$method_foreign($pass);
+					url.address.$method_foreign($pass);
 					Self::Url(url)
 				}
 				Self::None => self,
@@ -78,7 +85,7 @@ macro_rules! builder_func_result {
 	($method_own:ident, $method_foreign:ident, $pass:expr, $type:ty) => {
 		pub fn $method_own(self, $method_own: $type) -> Self {
 			match self {
-				Self::Url(mut url) => match url.$method_foreign($pass) {
+				Self::Url(mut url) => match url.address.$method_foreign($pass) {
 					Ok(_) => Self::Url(url),
 					Err(_) => Self::None,
 				},
@@ -88,16 +95,20 @@ macro_rules! builder_func_result {
 	};
 }
 
-impl UrlBuilder {
-	pub fn new() -> UrlBuilder {
+impl RequestBuilder {
+	pub fn new() -> RequestBuilder {
 		// TODO: add `new` implementation for builder
 		// using pasre method like this sucks
-		UrlBuilder::Url(url::Url::parse("http://127.0.0.1").unwrap())
+		RequestBuilder::Url(UrlWithExtensions{
+            address: url::Url::parse("http://127.0.0.1").unwrap(),
+            headers: Vec::new(),
+            method: None,
+        })
 	}
 	pub fn query_pairs(self, pairs: Vec<(String, String)>) -> Self {
 		match self {
 			Self::Url(mut url) => {
-				url.query_pairs_mut().extend_pairs(pairs.into_iter());
+				url.address.query_pairs_mut().extend_pairs(pairs.into_iter());
 				Self::Url(url)
 			}
 			Self::None => self,
@@ -106,16 +117,32 @@ impl UrlBuilder {
 	pub fn param(self, key: &str, value: &str) -> Self {
 		match self {
 			Self::Url(mut url) => {
-				url.query_pairs_mut().append_pair(key, value);
+				url.address.query_pairs_mut().append_pair(key, value);
 				Self::Url(url)
 			}
 			Self::None => self,
 		}
 	}
-	pub fn build(self) -> Option<url::Url> {
+    pub fn header(self, header: String, value: String) -> Self {
+        match self {
+            Self::Url(mut url) => {
+                url.headers.push((header, value));
+                Self::Url(url)
+            }
+            Self::None => self,
+        }
+    }
+	pub fn build(self) -> Option<ureq::Request> {
 		match self {
-			Self::Url(url) => Some(url),
-			Self::None => Option::<url::Url>::None,
+			Self::Url(url) => {
+                let method = url.method.unwrap_or(String::from("GET"));
+                let mut req = ureq::request_url(method.as_str(), &url.address);
+                for (header, value) in url.headers {
+                    req = req.set(header.as_str(), value.as_str());
+                }
+                Some(req)
+            },
+			Self::None => Option::<ureq::Request>::None,
 		}
 	}
 	builder_func_result!(scheme, set_scheme, scheme, &str);

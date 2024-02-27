@@ -54,8 +54,10 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE TABLE IF NOT EXISTS channels (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
-    permissions INTEGER DEFAULT 0
-    -- icon_path = ":data/icons/channels/<id>.ext"
+    description TEXT,
+    avatar TEXT,                    -- path relative to cachedir
+    enabled BOOLEAN,
+    permissions INTEGER DEFAULT 0,
 );"#;
     pub const ACCOUNTS_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS accounts (
@@ -85,15 +87,15 @@ CREATE TABLE IF NOT EXISTS media_link (
 
 /// cbindgen:ignore
 pub mod insert {
-    pub const MESSAGE_DATA: &str = r#"
+    pub const MESSAGE: &str = r#"
 INSERT OR IGNORE 
     INTO messages (channel, user, posted_unix, posted_ns, type, data)
     VALUES (?1, ?2, ?3, ?4, ?5, ?6);
 "#;
-    pub const MESSAGE_CHANNEL: &str = r#"
+    pub const CHANNEL: &str = r#"
 INSERT OR IGNORE
-    INTO channels (id, name)
-    VALUES (?1, ?2);
+    INTO channels (id, name, description, avatar, enabled, permissions)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6);
 "#;
     pub const MEDIA: &str = r#"
 

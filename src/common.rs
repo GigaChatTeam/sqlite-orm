@@ -41,7 +41,7 @@ pub fn ptr_to_str(ptr: *const c_char) -> Result<&'static str, Utf8Error> {
 
 /// Converts std::string::String into *const u8 (const unsigned char*)
 /// 
-/// clones the string in order to convert it inco CString (which app3nds null terminator to the end
+/// clones the string in order to convert it inco CString (which appends null terminator to the end
 /// of the string) and returns either a NulError or a new, fresh and valid string pointer
 /// 
 /// # Arguments
@@ -51,9 +51,19 @@ pub fn ptr_to_str(ptr: *const c_char) -> Result<&'static str, Utf8Error> {
 /// Result<*const u8, NulError>, where NulError occurs only when there are null bytes in the middle
 /// of the original string and *const u8 is a pointer to the beginning of the string
 ///
-pub fn str_to_ptr(str: String) -> Result<*const u8, NulError> {
+pub fn str_to_ptr(str: String) -> Result<*const c_char, NulError> {
     let ret = CString::new(str.into_bytes())?
-        .into_raw() as *const u8;
+        .into_raw() as *const c_char;
     Ok(ret)
 }
+
+/// tries to make a string and if it fails returns nullptr
+pub fn transform_string_option(so: Option<String>) -> *const c_char {
+    if let Some(s) = so {
+        str_to_ptr(s).unwrap_or(std::ptr::null())
+    } else {
+        std::ptr::null()
+    }
+}
+
 

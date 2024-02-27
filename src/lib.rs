@@ -37,8 +37,8 @@ pub mod testing {
 
     #[test]
     fn create_database() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char as *const c_char)) };
-        assert_eq!(gigachat_create_database(), 6);
+        unsafe { dbg!(gigachatdb_init("./gigachat.db\0".as_ptr() as *const c_char as *const c_char)) };
+        assert_eq!(gigachatdb_create_database(), 6);
     }
 
     // helper function
@@ -58,7 +58,7 @@ pub mod testing {
     // write a single message
     #[test]
     fn write_1() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char)) };
+        unsafe { dbg!(gigachatdb_init("./gigachat.db\0".as_ptr() as *const c_char)) };
         let m1: Message = Message {
             r#type: MessageType::TXT as u32,
             data_text: "string\0".as_ptr() as *const c_char as *const i8,
@@ -77,7 +77,7 @@ pub mod testing {
     #[cfg(feature = "multithread")]
     #[test]
     fn write_multithread() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char)) };
+        unsafe { dbg!(gigachatdb_init("./gigachat.db\0".as_ptr() as *const c_char)) };
         let mut threads: Vec<JoinHandle<_>> = vec![];
         for i in 1..100 {
             threads.push(std::thread::spawn( move || {
@@ -96,7 +96,7 @@ pub mod testing {
     // write messages one-by-one in a loop
     #[test]
     fn write_loop() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char)) };
+        unsafe { dbg!(gigachatdb_init("./gigachat.db\0".as_ptr() as *const c_char)) };
         let mut amount = 0i32;
         let mut gen = random::default(
             SystemTime::now()
@@ -116,7 +116,7 @@ pub mod testing {
     // write messages as an array
     #[test]
     fn write_array() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char)) };
+        unsafe { dbg!(gigachatdb_init("./gigachat.db\0".as_ptr() as *const c_char)) };
         let mut gen = random::default(rand::thread_rng().gen());
         let x = CString::new(format!("{} | {}", "array_write", gen.read_u64())).unwrap();
         let messages: Vec<Message> = std::iter::repeat_with( || gen_rand_msg(&mut gen, &x) )
@@ -127,13 +127,23 @@ pub mod testing {
 
     #[test]
     fn clear_database() {
-        unsafe { dbg!(gigachat_init("./gigachat.db\0".as_ptr() as *const c_char)) };
-        assert_eq!(gigachat_clear_database(), 0);
+        unsafe { dbg!(gigachatdb_init("./gigachat.db\0".as_ptr() as *const c_char)) };
+        assert_eq!(gigachatdb_clear_database(), 0);
     }
 
     #[test] 
     fn load_channels() {
-        super::networking::load_channels(0, std::ptr::null(), std::ptr::null());
+        let token = CString::new("iwX_WavRC3CekBWuSP9nLyyTc_xyrK8xbgApX9WYkzsZSPur").unwrap();
+        let url = CString::new("192.168.196.60:8084").unwrap();
+        let array = super::networking::load_channels(1, token.as_ptr(), url.as_ptr());
+        if array.data != std::ptr::null_mut() { 
+            unsafe {
+                dbg!(Vec::from_raw_parts(array.data, array.size as usize, array.alloc as usize));
+            }
+            return;
+        }
+        dbg!(array.data, array.size, array.alloc);
+        panic!("could not read message");
     }
 
 }
