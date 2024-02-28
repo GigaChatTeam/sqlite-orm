@@ -30,9 +30,6 @@ use std::ptr::null as nullptr;
 
 use crate::{common::*, database::structs};
 
-trait IntoCStyle<T> {
-	fn into_c(self) -> T;
-}
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Forward {
 	r#type: String,

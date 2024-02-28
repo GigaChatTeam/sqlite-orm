@@ -33,11 +33,11 @@
 pub mod gc_json;
 pub mod urlbuilder;
 
-use crate::common::{ptr_to_str, str_to_ptr};
+use crate::common::{ptr_to_str};
 
 // renamed to differentiate between my json module (prefixe with gc_) and
 // microserde's json module (prefixed with ms_)
-use microserde::{json as ms_json, Deserialize, Serialize};
+use microserde::{json as ms_json, Deserialize};
 
 use std::ffi::c_char;
 use ureq;

@@ -57,7 +57,6 @@ CREATE TABLE IF NOT EXISTS channels (
     description TEXT,
     avatar TEXT,                    -- path relative to cachedir
     enabled BOOLEAN,
-    permissions INTEGER DEFAULT 0,
 );"#;
     pub const ACCOUNTS_TABLE: &str = r#"
 CREATE TABLE IF NOT EXISTS accounts (
@@ -83,6 +82,15 @@ CREATE TABLE IF NOT EXISTS media_link (
     FOREIGN KEY (channel) REFERENCES channels(id),
     FOREIGN KEY (time_unix, time_ns) REFERENCES messages(posted_unix, posted_ns)
 );"#;
+    pub const PERMISSIONS_TABLE: &str = r#"
+CREATE TABLE IF NOT EXISTS permissions (
+    channel INTEGER,
+    user INTEGER,
+    permission INTEGER,
+
+    FOREIGN KEY channel REFERENCES channels(id),
+    FOREIGN KEY user REFERENCES users(id)
+);"#;
 }
 
 /// cbindgen:ignore
@@ -94,11 +102,16 @@ INSERT OR IGNORE
 "#;
     pub const CHANNEL: &str = r#"
 INSERT OR IGNORE
-    INTO channels (id, name, description, avatar, enabled, permissions)
-    VALUES (?1, ?2, ?3, ?4, ?5, ?6);
+    INTO channels (id, name, description, avatar, enabled)
+    VALUES (?1, ?2, ?3, ?4, ?5;
 "#;
     pub const MEDIA: &str = r#"
 
+"#;
+    pub const PERMISSION: &str = r#"
+INSERT OR IGNORE 
+    INTO permissions(channel, user, permission)
+    VALUES (?1, ?2, ?3);
 "#;
 }
 

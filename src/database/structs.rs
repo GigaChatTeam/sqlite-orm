@@ -1,6 +1,18 @@
 use std::ops;
 use std::ffi::c_char;
 
+/// A struct that represents an array of permissions
+///
+/// # Note
+/// This struct is not tied to a specific user or channel. This struct should be used in a context
+/// of a user-channel pair, otherwise it makes no sense.
+#[repr(C)]
+#[derive(Debug)]
+pub struct Permissions {
+    pub data: *const u16,
+    pub size: usize,
+}
+
 /// A Struct to represent a channel inside database. 
 ///
 /// Fields `description` and `avatar` are optional, and since this struct needs to be
@@ -29,7 +41,7 @@ pub struct Channel {
     /// can read messages and load history from it)
     */
     pub enabled: bool,
-    pub permissions: u64,
+    pub permissions: Permissions,
 }
 
 /// Flag enum to represent what a message contains

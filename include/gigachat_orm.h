@@ -104,6 +104,12 @@ typedef struct Message {
         uint64_t reply_id;
 } Message;
 
+// A struct that represents an array of permissions
+typedef struct Permissions {
+        const uint16_t *data;
+        uintptr_t size;
+} Permissions;
+
 // A Struct to represent a channel inside database.
 typedef struct Channel {
         // Unique identifier of the channel
@@ -116,7 +122,7 @@ typedef struct Channel {
         const char *avatar;
         // Creation time (UNIX seconds)
         bool enabled;
-        uint64_t permissions;
+        struct Permissions permissions;
 } Channel;
 
 // A c-style array with Channels.

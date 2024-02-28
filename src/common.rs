@@ -22,6 +22,14 @@
 use std::ffi::{CStr, CString, NulError, c_char};
 use std::str::Utf8Error;
 
+/// So appearantly you can not construct Utf8Error on your own so I have to implement YET ANOTHER
+/// ERROR TYPER
+enum PointerError {
+    Utf8(Utf8Error),
+    Nul(NulError),
+    Nullptr,
+}
+
 /// Converts pointer to unowned string
 /// 
 /// Does not own memory! The string must end with '\0' byte!
@@ -32,11 +40,14 @@ use std::str::Utf8Error;
 /// # Returns
 /// result of CStr::to_str 
 ///
-pub fn ptr_to_str(ptr: *const c_char) -> Result<&'static str, Utf8Error> {
+pub fn ptr_to_str(ptr: *const c_char) -> Result<&'static str, PointerError> {
     // bro relly? CStr::from_ptr is architecture-dependent? Okay rust this is funny 
     // TODO: change every pointer use to c_char because something funny might happen
+    if ptr.is_null() {
+        return Err(PointerError::Nullptr);
+    }
     let ptr: &CStr = unsafe { CStr::from_ptr(ptr as *const c_char) };
-    ptr.to_str()
+    ptr.to_str().map_err(|x| PointerError::Utf8(x))
 }
 
 /// Converts std::string::String into *const u8 (const unsigned char*)
@@ -51,8 +62,9 @@ pub fn ptr_to_str(ptr: *const c_char) -> Result<&'static str, Utf8Error> {
 /// Result<*const u8, NulError>, where NulError occurs only when there are null bytes in the middle
 /// of the original string and *const u8 is a pointer to the beginning of the string
 ///
-pub fn str_to_ptr(str: String) -> Result<*const c_char, NulError> {
-    let ret = CString::new(str.into_bytes())?
+pub fn str_to_ptr(str: String) -> Result<*const c_char, PointerError> {
+    let ret = CString::new(str.into_bytes())
+        .map_err(|e| PointerError::Nul(e))?
         .into_raw() as *const c_char;
     Ok(ret)
 }

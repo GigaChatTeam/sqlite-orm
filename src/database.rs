@@ -299,13 +299,21 @@ fn gigachatdb_clear_database() -> i32 {
     }
 }
 
-fn gigachatdb_insert_channel(db: &mut rusqlite::Connection, c: &Channel) -> Result<usize, rusqlite::Error> {
-    let mut result = 0usize;
+fn insert_single_channel(db: &mut rusqlite::Connection, c: &Channel) -> Result<usize, rusqlite::Error> {
     let trans = db.transaction()?;
+
+    let mut result = 0usize;
+    let name = ptr_to_str(c.title).ok();
+    let description = ptr_to_str(c.description).ok();
     
     trans.prepare_cached(sql::insert::CHANNEL)?
         .execute(params![
-        ]);
+            c.id,
+            name,
+            description,
+            Option::<&str>::None,
+            c.enabled,
+        ])?;
 
     todo!()
 }
