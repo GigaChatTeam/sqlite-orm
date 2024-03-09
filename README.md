@@ -1,4 +1,14 @@
 # Overview
+## TODO 
+* Implement a `C array` wrapper already, I've procrastinated on this long enough
+* Move nightly-only features behind a compilation feature 
+* Load channels
+* Implement integrity checks
+* Check for consistency in function names
+* test memory leaks and async more
+* test from FFI 
+* restructure SQL database 
+* implement json -> C structs through `into` trait
 ## What?
 API abstracting away SQL for database interactions
 ## Why?
@@ -6,10 +16,8 @@ To provide easy way for clients to cache messages
 ## Implementation
 Rust + SQLite
 ## Branches
-~~* `master`:         Currently has NON-THREAD-SAFE implementation!~~
-~~* `thread-safe`:    I am working on adding thread-safety there. Changes made to master will be merged and patched there.~~
 * `master`:         The main working branch, Thread-safe API was merged into master
-* `temp`: unfinished commits that will be squeezed into master 
+* `temp`:           unfinished commits that will be squeezed into master 
 ## (Rust) features
 * `multithread`: support for calling this library from multiple threads. Without this feature multithreading causes undefined behavior
 ## Usage
@@ -21,7 +29,7 @@ For now this library requires rust-nightly, because one of the functions uses `s
 * `cargo build --release` is you are planning on using this library, since functions that are exclusively for debugging are hidden behind `#[cfg(debug_assertions)]`
 * `cargo build` if you are planning on developing/contributing to library 
 # Example
-`cargo doc --open`. You are welcome.
+`cargo doc --open` in source directory. You are welcome.
 
 # Contributing
 For now just open a pull request and If it contains anything useful at all it will probably be merged.
