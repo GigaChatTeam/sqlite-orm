@@ -352,7 +352,6 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
              m.time, 
              m.time_ns, 
              m.r#type, 
-             ptr_to_str(m.data_text)?
         ]);
         if let Ok(count) = exec_result { result += count };
     }

@@ -16,6 +16,9 @@
 #include <stdlib.h>
 
 
+// use 1 byte as alignment by default
+#define GLOB_MEM_ALIGN (1 << 3)
+
 // enum to represent the type of media being sent/stored
 typedef enum MediaType {
         // A Video
@@ -29,6 +32,16 @@ typedef enum MediaType {
         // Must be last for serialization purposes
         MediaType_Sentinel,
 } MediaType;
+
+// Holds all possible types that can be allocated. Will be extended in future.
+typedef enum Type {
+        Type_Message,
+        Type_Channel,
+        // The only one that requires explaination. This means "raw bytes". so if
+        Type_Raw,
+        // Must be last for serialization purposes
+        Type_Sentinel,
+} Type;
 
 // A struct to reresent coordinates of a Media entry in MediaGroup
 typedef struct MediaCoordinates {
@@ -161,6 +174,21 @@ extern "C" {
 
 // A function to load all channels with /user/&lt;UID&gt;/channels server request
  struct ChannelArray gigachatnw_load_channels(uint64_t uid, const char *token, const char *dlb_url) ;
+
+// frees any array returned by this module
+ void gcmm_free_array(void *arr) ;
+
+// allocates an array of specified type and size.
+ void *gcmm_alloc_array(enum Type t, uintptr_t n) ;
+
+// returns the size of the array
+ uintptr_t gcmm_array_size(const void *arr) ;
+
+// returns the size of one element in the array
+ uintptr_t gcmm_array_element_size(void *arr) ;
+
+// allocates array of structs [Message](crate::database::structs::Message)
+ struct Message *gcmm_alloc_Messages(uintptr_t n) ;
 
 #ifdef __cplusplus
 } // extern "C"

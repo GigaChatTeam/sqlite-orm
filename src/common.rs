@@ -24,7 +24,7 @@ use std::str::Utf8Error;
 
 /// So appearantly you can not construct Utf8Error on your own so I have to implement YET ANOTHER
 /// ERROR TYPER
-enum PointerError {
+pub enum PointerError {
     Utf8(Utf8Error),
     Nul(NulError),
     Nullptr,
@@ -77,5 +77,6 @@ pub fn transform_string_option(so: Option<String>) -> *const c_char {
         std::ptr::null()
     }
 }
+
 
 

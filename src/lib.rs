@@ -22,6 +22,7 @@
 #![feature(vec_into_raw_parts)]
 pub mod database;
 pub mod networking;
+pub mod memory;
 pub mod common;
 
 #[cfg(test)]

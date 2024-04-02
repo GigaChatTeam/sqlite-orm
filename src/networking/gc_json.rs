@@ -97,7 +97,7 @@ impl Into<structs::Channel> for ChannelMetaData {
 			description: description_,
 			avatar: avatar_,
 			enabled: self.enabled,
-			permissions: 0,
+			permissions: structs::Permissions { data: nullptr(), size: 0 },
 		}
 	}
 }
