@@ -20,6 +20,7 @@
 */
 
 #![feature(vec_into_raw_parts)]
+
 pub mod database;
 pub mod networking;
 pub mod memory;
@@ -39,7 +40,7 @@ pub mod testing {
     #[test]
     fn create_database() {
         unsafe { dbg!(gigachatdb_init("./gigachat.db\0".as_ptr() as *const c_char as *const c_char)) };
-        assert_eq!(gigachatdb_create_database(), 6);
+        assert_eq!(gcdb_create_database(), 6);
     }
 
     // helper function
@@ -62,7 +63,7 @@ pub mod testing {
         unsafe { dbg!(gigachatdb_init("./gigachat.db\0".as_ptr() as *const c_char)) };
         let m1: Message = Message {
             r#type: MessageType::TXT as u32,
-            data_text: "string\0".as_ptr() as *const c_char as *const i8,
+            data_text: "string\0".as_ptr() as *const c_char,
             data_media: MessageData::Nomedia(()),
             channel: 0,
             sender: 0,
@@ -71,7 +72,7 @@ pub mod testing {
             reply_id: 0,
         };
         let messages = vec![m1];
-        assert!(gigachat_insert_messages(messages.as_ptr(), messages.len()) >= 0);
+        assert!(gcdb_insert_messages(messages.as_ptr(), messages.len()) >= 0);
     }
 
     // write a single message from multiple threads
@@ -129,7 +130,7 @@ pub mod testing {
     #[test]
     fn clear_database() {
         unsafe { dbg!(gigachatdb_init("./gigachat.db\0".as_ptr() as *const c_char)) };
-        assert_eq!(gigachatdb_clear_database(), 0);
+        assert_eq!(gcdb_clear_database(), 0);
     }
 
     #[test] 

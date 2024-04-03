@@ -124,7 +124,7 @@ pub unsafe extern "C" fn gcmm_alloc_array(t: Type, n: usize) -> *mut c_void {
 	#[allow(unreachable_patterns)]
 	match t {
 		Type::Message => gcmm_alloc_Messages(n) as *mut c_void,
-		Type::Channel => todo!(),
+		Type::Channel => gcmm_alloc_Channels(n) as *mut c_void,
         Type::Raw => alloc_array::<u8>(n).unwrap_or(null_mut()) as *mut c_void,
 		_ => null_mut(), /* Why would rust complain on me matching an unreachable pattern on
 		                  * non_exhaustive enum */
@@ -168,11 +168,36 @@ pub unsafe extern "C" fn gcmm_array_element_size(arr: *mut c_void) -> usize {
 	*arr.add(1)
 }
 
-/// allocates array of structs [Message](crate::database::structs::Message)
-/// # Notes
-/// see [gcmm_alloc_array] for more info.
-#[no_mangle]
-pub unsafe extern "C" fn gcmm_alloc_Messages(n: usize) -> *mut structs::Message {
-	let memory = alloc_array::<structs::Message>(n);
-	memory.unwrap_or(null_mut()) as *mut structs::Message
+/// I am lazy and rust allows this. 
+macro_rules! gen_allocator {
+    ($struct:ident,$name:ident) => {
+        /// A function to allocate memory for [$struct](crate::database::structs::$struct)
+        /// 
+        /// # Arguments 
+        /// * `n`: size of the array. 
+        ///
+        /// # Returns 
+        /// * pointer to allocated memory 
+        /// 
+        /// # Safety
+        /// * uses memory allocation API, so has to be unsafe 
+        ///
+        /// # More details 
+        /// see [gcmm_alloc_array]
+        ///
+        /// # Note 
+        /// This documentation is generated from macro, so substitution may be incorrect, i don't
+        /// know how to fix this. Anyways, you should guess what this function returns from it's name
+        #[no_mangle]
+        pub unsafe extern "C" 
+        fn $name(n: usize) -> *mut structs::$struct {
+            let memory = alloc_array::<structs::$struct>(n);
+            memory.unwrap_or(null_mut()) as *mut structs::$struct
+        }
+    };
 }
+
+gen_allocator!(Channel, gcmm_alloc_Channels);
+gen_allocator!(Message, gcmm_alloc_Messages);
+gen_allocator!(Media, gcmm_alloc_Media);
+

@@ -1,8 +1,8 @@
 /* ----------------------------------------------------------------------------
-   gigachat-orm - a library for caching and managing gigachat files
+   gc-orm - a library for caching and managing gigachat files
    Copyright (C) 2024 Sotov Konstantin A
 
-   This file is part of gigachat-orm library.
+   This file is part of gc-orm library.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public License
@@ -48,6 +48,8 @@
 //! {{ Not yet provided }}
 //!
 
+#![allow(clippy::similar_names)]
+
 // standard library
 use std::ffi::c_char;
 
@@ -59,7 +61,7 @@ use {
 };
 use rusqlite::{self, params};
 
-use crate::{common::ptr_to_str, networking};
+use crate::common::ptr_to_str;
 // use cpp;
 
 // public re-exports
@@ -115,10 +117,10 @@ pub static mut DB_CONNECTION: Option<Pool<SqliteConnectionManager>> = None;
 /// <...>
 ///
 /// int main() {
-///     gigachat_database_interface_init("/home/garfield/.local/share/GigaChat/root.db");
+///     gcdb_init("/home/garfield/.local/share/GigaChat/root.db");
 ///
 ///     // use any other functions from now on...
-///     if (gigachat_create_database() != 0) {
+///     if (gcdb_create_database() != 0) {
 ///         perror("woah, that's unfortunate");
 ///     }
 ///     
@@ -127,7 +129,7 @@ pub static mut DB_CONNECTION: Option<Pool<SqliteConnectionManager>> = None;
 /// ```
 #[no_mangle]
 pub unsafe extern "C"
-fn gigachatdb_init(dbname: *const c_char) -> i32 {
+fn gcdb_init(dbname: *const c_char) -> i32 {
     if DB_CONNECTION.is_some() {
         return DbError::AlreadyInitialized as i32;
     }
@@ -166,12 +168,12 @@ fn gigachatdb_init(dbname: *const c_char) -> i32 {
 ///
 /// # Example
 /// ```cpp
-/// extern "C" int32_t gigachat_create_database();
-/// extern "C" int32_t gigachat_database_interface_init(const char*);
+/// extern "C" int32_t gc_create_database();
+/// extern "C" int32_t gcdb_init(const char*);
 /// <...>
 /// std::string database_name = "~/.local/share/GigaChat/gc.db"
-/// gigachat_database_interface_init(database_name.data())
-/// if ( (int32_t errors = gigachat_create_database()) != 0 ) {
+/// gcdb_init(database_name.data())
+/// if ( (int32_t errors = gc_create_database()) != 0 ) {
 ///     if (errors > 0) {
 ///         std::cout << errors << " tables could not be created!"
 ///         shit_happened();
@@ -186,7 +188,7 @@ fn gigachatdb_init(dbname: *const c_char) -> i32 {
 /// ```
 #[no_mangle]
 pub extern "C"
-fn gigachatdb_create_database() -> i32 {
+fn gcdb_create_database() -> i32 {
     let db = match unsafe { DB_CONNECTION.as_mut() } {
         Some(a) => a,
         None => return DbError::Uninitialized as i32,
@@ -242,13 +244,13 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
 /// * * any positive number = amount of successfully deleted tables
 ///
 /// # Example
-/// handling return value of the gigachat_clear_database function
+/// handling return value of the gcdb_clear_database function
 /// ```cpp
 /// #include <message_interface_cpp.h>
 /// <...>
 /// std::string name = "/home/user/.local/share/GigaChat/cache.db";
-/// gigachat_database_interface_init(name.data());
-/// int32_t status = gigachat_clear_database();
+/// gcdb_init(name.data());
+/// int32_t status = gcdb_clear_database();
 /// if (status != 0) {
 ///     if (status > 0) std::cout << status << " tables were not deleted successfully";
 ///     else {
@@ -263,7 +265,7 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
 ///
 #[no_mangle]
 pub extern "C" 
-fn gigachatdb_clear_database() -> i32 {
+fn gcdb_clear_database() -> i32 {
     match unsafe {DB_CONNECTION.as_mut()} {
         Some(db) => {
             #[cfg(feature = "multithread")]
@@ -384,7 +386,7 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
 /// {{ nothing here yet... please forgive the developer, he gets no sleep at all :'( }}
 #[no_mangle]
 pub extern "C"
-fn gigachatdb_insert_messages(mvec: *const Message, len: usize) -> i32 {
+fn gcdb_insert_messages(mvec: *const Message, len: usize) -> i32 {
     match unsafe { DB_CONNECTION.as_mut() } {
         Some(db) => {
             let mut count = 0i32;
@@ -409,17 +411,10 @@ fn gigachatdb_insert_messages(mvec: *const Message, len: usize) -> i32 {
     }
 }
 
-/// Frees array of messages allocated by the API 
-#[no_mangle]
-pub unsafe extern "C"
-fn gigachatdb_free(ptr: *mut Message) {
-    todo!()
-}
-
 /// A function to read messages from database
 #[no_mangle]
 pub extern "C"
-fn gigachatdb_get_messages(channel: u64, amount: usize) -> *mut Message {
+fn gcdb_get_messages(channel: u64, amount: usize) -> *mut Message {
     todo!()
 }
 

@@ -67,12 +67,6 @@ typedef struct Media {
         struct MediaCoordinates coordinates;
 } Media;
 
-// A wrapper for storing Media as C array
-typedef struct MediaArrayType {
-        uintptr_t size;
-        const struct Media *data;
-} MediaArrayType;
-
 // enum to represent data of any type of message.
 typedef enum MessageData_Tag {
         MessageData_Nomedia,
@@ -92,7 +86,7 @@ typedef struct MessageData {
                         struct Media media;
                 };
                 struct {
-                        struct MediaArrayType media_array;
+                        struct Media *media_array;
                 };
         };
 } MessageData;
@@ -153,22 +147,19 @@ extern "C" {
 #endif // __cplusplus
 
 // Initializes the dynamic library. MUST BE CALLED BEFORE ANY OTHER FUNCTION.
- int32_t gigachatdb_init(const char *dbname) ;
+ int32_t gcdb_init(const char *dbname) ;
 
 // Creates database at path `dbname`
- int32_t gigachatdb_create_database(void) ;
+ int32_t gcdb_create_database(void) ;
 
 // The function to delete all tables from the database, effectively clearing it up
- int32_t gigachatdb_clear_database(void) ;
+ int32_t gcdb_clear_database(void) ;
 
 // A function to insert any amount of messages into a database
- int32_t gigachatdb_insert_messages(const struct Message *mvec, uintptr_t len) ;
-
-// Frees array of messages allocated by the API
- void gigachatdb_free(struct Message *ptr) ;
+ int32_t gcdb_insert_messages(const struct Message *mvec, uintptr_t len) ;
 
 // A function to read messages from database
- struct Message *gigachatdb_get_messages(uint64_t channel, uintptr_t amount) ;
+ struct Message *gcdb_get_messages(uint64_t channel, uintptr_t amount) ;
 
  void test_rust_dynamic_library(void) ;
 
@@ -186,9 +177,6 @@ extern "C" {
 
 // returns the size of one element in the array
  uintptr_t gcmm_array_element_size(void *arr) ;
-
-// allocates array of structs [Message](crate::database::structs::Message)
- struct Message *gcmm_alloc_Messages(uintptr_t n) ;
 
 #ifdef __cplusplus
 } // extern "C"

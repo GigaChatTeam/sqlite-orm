@@ -195,16 +195,6 @@ pub struct Media {
     pub coordinates: MediaCoordinates,
 }
 
-/// A wrapper for storing Media as C array
-///
-/// Has no methods.
-#[repr(C)]
-#[derive(Debug)]
-pub struct MediaArrayType {
-    pub size: usize,
-    pub data: *const Media,
-}
-
 /// enum to represent data of any type of message.
 ///
 /// Based on the type the Message should contain one of these
@@ -215,7 +205,7 @@ pub struct MediaArrayType {
 pub enum MessageData {
     Nomedia(()),
     Media(Media),
-    MediaArray(MediaArrayType),
+    MediaArray(*mut Media),
 }
 
 /// A struct to represent any type of Message.
