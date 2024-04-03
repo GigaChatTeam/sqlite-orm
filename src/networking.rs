@@ -118,7 +118,7 @@ where
 {
 	let request = builder
 		.build()
-		.ok_or_else(|| StatusAndNwError::Nw(NwError::InvalidUrl))?;
+		.ok_or(StatusAndNwError::Nw(NwError::InvalidUrl))?;
 	dbg!(&request);
 	let response = request
 		.call()

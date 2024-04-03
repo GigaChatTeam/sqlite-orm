@@ -110,6 +110,10 @@ pub static mut DB_CONNECTION: Option<Pool<SqliteConnectionManager>> = None;
 /// * DbError::AlreadyInitialized if the function is called more than once
 /// * other errors from DbError enum (like InvalidCString) if they can occur
 ///
+/// # Safety 
+/// This function uses global static variable that may be uninitialized. It actually initializes
+/// it, so this should be no problem
+///
 /// # Example 
 /// ```C
 /// #include <message-db-interface.h> // may be changed in future
@@ -128,30 +132,32 @@ pub static mut DB_CONNECTION: Option<Pool<SqliteConnectionManager>> = None;
 /// }
 /// ```
 #[no_mangle]
-pub unsafe extern "C"
+pub extern "C"
 fn gcdb_init(dbname: *const c_char) -> i32 {
-    if DB_CONNECTION.is_some() {
-        return DbError::AlreadyInitialized as i32;
-    }
-    DB_CONNECTION = match open_db(dbname) {
-        Ok(db) => {
-            #[cfg(not(feature = "multithread"))]
-            {
-                Some(db)
-            }
-            #[cfg(feature = "multithread")]
-            {
-                let x = Pool::new(db);
-                if x.is_ok() {
-                    Some(x.unwrap())
-                } else {
-                    return DbError::CouldNotOpen as i32;
+    unsafe {
+        if DB_CONNECTION.is_some() {
+            return DbError::AlreadyInitialized as i32;
+        }
+        DB_CONNECTION = match open_db(dbname) {
+            Ok(db) => {
+                #[cfg(not(feature = "multithread"))]
+                {
+                    Some(db)
                 }
-            }
-        },
-        Err(e) => return e as i32,
-    };
-    0
+                #[cfg(feature = "multithread")]
+                {
+                    let x = Pool::new(db);
+                    if let Ok(val) =x {
+                        Some(val)
+                    } else {
+                        return DbError::CouldNotOpen as i32;
+                    }
+                }
+            },
+            Err(e) => return e as i32,
+        };
+        0
+    }
 }
 
 /// Creates database at path `dbname`
@@ -216,7 +222,7 @@ fn gcdb_create_database() -> i32 {
             Err(e) => { dbg!(e); },
         }
     }
-    return return_value;
+    return_value
 }
 
 fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32> {
@@ -226,7 +232,7 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
             Err(_) => return Err(DbError::SqliteFailure as i32),
         }
     } else { 
-        return Err(DbError::StatementError as i32) 
+        Err(DbError::StatementError as i32) 
     }
 }
 
@@ -359,9 +365,11 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
     }
 
     if let MessageData::Media(media) = &m.data_media {
+        let _ = media;
         todo!("ADD CHECK FOR Message::r#type");
     }
     else if let MessageData::MediaArray(array) = &m.data_media {
+        let _ = array;
         todo!();
     }
     
@@ -376,18 +384,21 @@ fn insert_single_message(db: &mut rusqlite::Connection, m: &Message) ->  Result<
 /// user-side (the api treats memory as read-only). must have at least `len` valid Messages
 /// * len (in C: size_t): amount of messages in the array `mvec`. If mvec is a raw memory adderss (void pointer),
 /// the last message will be located at `mvec + (sizeof(Message) * (len-1))`
-///
+/// 
 /// # Returns
 /// i8: error_status
 /// * any negative number = error: an i32 representation of DbError enum member
 /// * any positive number = amount of inserted messages
+/// 
+/// # Safety 
+/// dereferencing a raw pointer. 
 ///
 /// # Example
 /// {{ nothing here yet... please forgive the developer, he gets no sleep at all :'( }}
 #[no_mangle]
-pub extern "C"
+pub unsafe extern "C"
 fn gcdb_insert_messages(mvec: *const Message, len: usize) -> i32 {
-    match unsafe { DB_CONNECTION.as_mut() } {
+    match DB_CONNECTION.as_mut() {
         Some(db) => {
             let mut count = 0i32;
             #[cfg(feature = "multithread")]
@@ -396,7 +407,7 @@ fn gcdb_insert_messages(mvec: *const Message, len: usize) -> i32 {
                 Err(_) => return DbError::ConnectionPoolError as i32,
             };
 
-            for i in unsafe { std::slice::from_raw_parts(mvec, len) } {
+            for i in std::slice::from_raw_parts(mvec, len) {
                 match insert_single_message(&mut db, i) {
                     Ok(c) => count += c as i32,
                     Err(e) => match e {
@@ -415,7 +426,7 @@ fn gcdb_insert_messages(mvec: *const Message, len: usize) -> i32 {
 #[no_mangle]
 pub extern "C"
 fn gcdb_get_messages(channel: u64, amount: usize) -> *mut Message {
-    todo!()
+    todo!("{}{}", channel, amount)
 }
 
 #[cfg(debug_assertions)]

@@ -47,7 +47,7 @@ pub fn ptr_to_str(ptr: *const c_char) -> Result<&'static str, PointerError> {
         return Err(PointerError::Nullptr);
     }
     let ptr: &CStr = unsafe { CStr::from_ptr(ptr as *const c_char) };
-    ptr.to_str().map_err(|x| PointerError::Utf8(x))
+    ptr.to_str().map_err(PointerError::Utf8)
 }
 
 /// Converts std::string::String into *const u8 (const unsigned char*)
@@ -64,7 +64,7 @@ pub fn ptr_to_str(ptr: *const c_char) -> Result<&'static str, PointerError> {
 ///
 pub fn str_to_ptr(str: String) -> Result<*const c_char, PointerError> {
     let ret = CString::new(str.into_bytes())
-        .map_err(|e| PointerError::Nul(e))?
+        .map_err(PointerError::Nul)?
         .into_raw() as *const c_char;
     Ok(ret)
 }

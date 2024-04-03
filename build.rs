@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use cbindgen::{Builder, Config};
 
 extern crate cbindgen;

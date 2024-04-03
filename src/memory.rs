@@ -139,7 +139,7 @@ pub unsafe extern "C" fn gcmm_alloc_array(t: Type, n: usize) -> *mut c_void {
 /// # Returns
 /// `usize`: size of the array
 ///
-/// # Safety:
+/// # Safety
 /// dereferences a raw pointer. if valid, should be no problem.
 ///
 /// # Examples
@@ -157,7 +157,7 @@ pub unsafe extern "C" fn gcmm_array_size(arr: *const c_void) -> usize {
 /// # Returns
 /// `usize`: size of the element
 ///
-/// # Safety:
+/// # Safety
 /// dereferences a raw pointer. if valid, should be no problem.
 ///
 /// # Examples

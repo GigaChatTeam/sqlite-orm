@@ -108,7 +108,7 @@ impl RequestBuilder {
 	pub fn query_pairs(self, pairs: Vec<(String, String)>) -> Self {
 		match self {
 			Self::Url(mut url) => {
-				url.address.query_pairs_mut().extend_pairs(pairs.into_iter());
+				url.address.query_pairs_mut().extend_pairs(pairs);
 				Self::Url(url)
 			}
 			Self::None => self,
