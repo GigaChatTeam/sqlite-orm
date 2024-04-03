@@ -50,8 +50,8 @@ pub struct Message {
 	forward: Option<Forward>,
 }
 
-impl Into<structs::Message> for Message {
-	fn into(self) -> structs::Message {
+impl From<Message> for structs::Message {
+	fn from(val: Message) -> Self {
 		todo!()
 	}
 }
@@ -78,11 +78,11 @@ pub struct ChannelMetaData {
 	pub icon: Option<FileData>,
 }
 
-impl Into<structs::Channel> for ChannelMetaData {
-	fn into(self) -> structs::Channel {
-		let title_ = transform_string_option(self.title);
-		let description_ = transform_string_option(self.description);
-		let avatar_ = self
+impl From<ChannelMetaData> for structs::Channel {
+	fn from(val: ChannelMetaData) -> Self {
+		let title_ = transform_string_option(val.title);
+		let description_ = transform_string_option(val.description);
+		let avatar_ = val
 			.icon
 			.and_then(|icon| icon.url)
 			.and_then(|url| match str_to_ptr(url) {
@@ -92,11 +92,11 @@ impl Into<structs::Channel> for ChannelMetaData {
 			.unwrap_or(nullptr());
 
 		structs::Channel {
-			id: self.id,
+			id: val.id,
 			title: title_,
 			description: description_,
 			avatar: avatar_,
-			enabled: self.enabled,
+			enabled: val.enabled,
 			permissions: structs::Permissions { data: nullptr(), size: 0 },
 		}
 	}

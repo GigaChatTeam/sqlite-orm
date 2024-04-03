@@ -229,7 +229,7 @@ fn load_names(connection: &mut rusqlite::Connection) -> Result<Vec<String>, i32>
     if let Ok(mut nm) = connection.prepare(sql::misc::GET_TABLE_NAMES) {
         match nm.query_map([], |name| name.get(0)) {
             Ok(map) => Ok(map.filter_map(|i| i.ok()).collect()),
-            Err(_) => return Err(DbError::SqliteFailure as i32),
+            Err(_) => Err(DbError::SqliteFailure as i32),
         }
     } else { 
         Err(DbError::StatementError as i32) 
@@ -310,7 +310,7 @@ fn gcdb_clear_database() -> i32 {
 fn insert_single_channel(db: &mut rusqlite::Connection, c: &Channel) -> Result<usize, rusqlite::Error> {
     let trans = db.transaction()?;
 
-    let mut result = 0usize;
+    let result = 0usize;
     let name = ptr_to_str(c.title).ok();
     let description = ptr_to_str(c.description).ok();
     
