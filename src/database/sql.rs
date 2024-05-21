@@ -31,88 +31,100 @@
 /// cbindgen:ignore
 pub mod create {
     pub const USERS_TABLE: &str = r#"
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id INTEGER PRIMARY KEY,
     user_name TEXT NOT NULL,
     name_alias TEXT
     -- pfp_path = ":data/icons/users/<id>.ext""
 );"#;
     pub const MESSAGES_TABLE: &str = r#"
-CREATE TABLE IF NOT EXISTS messages (
+CREATE TABLE messages (
     channel INTEGER NOT NULL,
+    id INTEGER NOT NULL,
     user INTEGER NOT NULL,
     posted_unix INTEGER NOT NULL,
-    posted_ns INTEGER DEFAULT 0,    -- can be empty for most cases
     type INTEGER DEFAULT 1,
     data TEXT,                      -- if type is text, the text itself, if type is media, path to cached files
 
-    PRIMARY KEY (channel, posted_unix, posted_ns),
-    FOREIGN KEY (channel) REFERENCES channels(id),
-    FOREIGN KEY (user) REFERENCES users(id)
+    PRIMARY KEY (channel, id),
+    FOREIGN KEY (channel) REFERENCES channels (id),
+    FOREIGN KEY (user) REFERENCES users (id)
 );"#;
     pub const CHANNELS_TABLE: &str = r#"
-CREATE TABLE IF NOT EXISTS channels (
+CREATE TABLE channels (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
-    avatar TEXT,                    -- path relative to cachedir
+    avatar INTEGER,
     enabled BOOLEAN,
+
+    FOREIGN KEY avatar REFERENCES media (cache_id)
 );"#;
     pub const ACCOUNTS_TABLE: &str = r#"
-CREATE TABLE IF NOT EXISTS accounts (
+CREATE TABLE accounts (
     client INTEGER PRIMARY KEY,
     secret TEXT NOT NULL,
     key TEXT NOT NULL,
 
-    FOREIGN KEY (client) REFERENCES users (id)
+    FOREIGN KEY (client) references users (id)
 );"#;
+    /// это для себя
     pub const CONFIG_TABLE: &str = r#"
-CREATE TABLE IF NOT EXISTS config (
-    name TEXT PRIMARY KEY,
+CREATE TABLE config (
+    key TEXT PRIMARY KEY,
     value TEXT
 );"#;
+    pub const MEDIA_TABLE: &str = r#"
+CREATE TABLE media (
+    cache_id INTEGER PRIMARY KEY,
+    absolute_path TEXT,
+);"#;
     pub const MEDIA_LINK_TABLE: &str = r#"
-CREATE TABLE IF NOT EXISTS media_link (
-    time_unix INTEGER NOT NULL,
-    time_ns INTEGER NOT NULL,
+CREATE TABLE media_link (
     channel INTEGER NOT NULL,
-    link TEXT NOT NULL,
+    message_id INTEGER NOT NULL,
+    link INTEGER NOT NULL,
 
-    PRIMARY KEY (channel, time_unix, time_ns),
-    FOREIGN KEY (channel) REFERENCES channels(id),
-    FOREIGN KEY (time_unix, time_ns) REFERENCES messages(posted_unix, posted_ns)
+    PRIMARY KEY (channel, message_id),
+    FOREIGN KEY (channel, message_id) REFERENCES messages (channel, id),
+    FOREIGN KEY (link) REFERENCES media (cache_id)
 );"#;
     pub const PERMISSIONS_TABLE: &str = r#"
-CREATE TABLE IF NOT EXISTS permissions (
+CREATE TABLE permissions (
     channel INTEGER,
     user INTEGER,
     permission INTEGER,
 
-    FOREIGN KEY channel REFERENCES channels(id),
-    FOREIGN KEY user REFERENCES users(id)
+    PRIMARY KEY (channel, user, permission),
+    FOREIGN KEY (channel) REFERENCES channels (id),
+    FOREIGN KEY (user) REFERENCES users (id)
 );"#;
 }
 
 /// cbindgen:ignore
 pub mod insert {
     pub const MESSAGE: &str = r#"
-INSERT OR IGNORE 
-    INTO messages (channel, user, posted_unix, posted_ns, type, data)
-    VALUES (?1, ?2, ?3, ?4, ?5, ?6);
-"#;
+INSERT
+    INTO messages (channel, id, user, posted_unix, type, data)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+;"#;
     pub const CHANNEL: &str = r#"
-INSERT OR IGNORE
+INSERT
     INTO channels (id, name, description, avatar, enabled)
-    VALUES (?1, ?2, ?3, ?4, ?5;
-"#;
-    pub const MEDIA: &str = r#"
-
-"#;
+    VALUES (?1, ?2, ?3, ?4, ?5)
+;"#;
+    pub const MEDIA_ENTRY: &str = r#"
+INSERT
+    INTO media (absolute_path) VALUES (?1)
+;"#;
+    pub const MEDIA_LINK: &str = r#"
+!!!TODO!!!
+;"#;
     pub const PERMISSION: &str = r#"
-INSERT OR IGNORE 
+INSERT 
     INTO permissions(channel, user, permission)
-    VALUES (?1, ?2, ?3);
-"#;
+    VALUES (?1, ?2, ?3)
+;"#;
 }
 
 /// cbindgen:ignore

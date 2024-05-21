@@ -433,5 +433,5 @@ fn gcdb_get_messages(channel: u64, amount: usize) -> *mut Message {
 #[no_mangle]
 pub extern "C" 
 fn test_rust_dynamic_library() {
-    println!("THIS IS RUUUUUUST");
+    println!("THIS IS RUUUUUUST BABY");
 }

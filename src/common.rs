@@ -62,10 +62,10 @@ pub fn ptr_to_str(ptr: *const c_char) -> Result<&'static str, PointerError> {
 /// Result<*const u8, NulError>, where NulError occurs only when there are null bytes in the middle
 /// of the original string and *const u8 is a pointer to the beginning of the string
 ///
-pub fn str_to_ptr(str: String) -> Result<*const c_char, PointerError> {
+pub fn str_to_ptr(str: String) -> Result<*mut c_char, PointerError> {
     let ret = CString::new(str.into_bytes())
         .map_err(PointerError::Nul)?
-        .into_raw() as *const c_char;
+        .into_raw() as *mut c_char;
     Ok(ret)
 }
 

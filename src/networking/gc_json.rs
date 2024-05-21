@@ -26,7 +26,8 @@
 
 use microserde::{Deserialize, Serialize};
 
-use std::ptr::null as nullptr;
+use std::ptr::{null, null_mut};
+use std::os::raw::*;
 
 use crate::{common::*, database::structs};
 
@@ -40,19 +41,49 @@ pub struct Forward {
 pub struct Message {
 	id: u64,
 	author: Option<u64>,
-	editer: bool,
-	unix_milli: u64,
+	edited: bool,
+	timestamp: u64,
 	r#type: String,
 	data: Option<String>,
 	// only IDs
 	files: Vec<u64>,
-	// media: Vec<Vec<u64>>,
+	media: Vec<Vec<u64>>, // HUGE TODO!
 	forward: Option<Forward>,
 }
 
 impl From<Message> for structs::Message {
 	fn from(val: Message) -> Self {
-		todo!()
+        use structs::MessageType::*;
+
+        let mut tp: u32;
+        let mut txtdata: *mut c_char = null_mut();
+
+        match val.r#type.as_str() {
+            "SYSTEM" => todo!(),
+            "TEXT" => { 
+                tp = 0 | TXT;
+                txtdata = if let Some(str) = val.data {
+                    str_to_ptr(str).unwrap_or(null_mut())
+                } else {
+                    null_mut()
+                };
+            },
+            _ => todo!(),
+        }
+        if !val.media.is_empty() {
+            tp = tp | MEDGROUP;
+            todo!()
+        }
+		structs::Message {
+            id: val.id,
+			r#type: tp,
+			data_text: txtdata,
+			data_media: todo!(),
+			sender: val.author.unwrap_or(0u64),
+			channel: todo!(),
+			time: val.timestamp,
+			reply_id: todo!(),
+		}
 	}
 }
 
@@ -97,7 +128,10 @@ impl From<ChannelMetaData> for structs::Channel {
 			description: description_,
 			avatar: avatar_,
 			enabled: val.enabled,
-			permissions: structs::Permissions { data: nullptr(), size: 0 },
+			permissions: structs::Permissions {
+				data: nullptr(),
+				size: 0,
+			},
 		}
 	}
 }

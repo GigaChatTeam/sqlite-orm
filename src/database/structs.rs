@@ -220,6 +220,8 @@ pub enum MessageData {
 #[derive(Debug)]
 #[repr(C)]
 pub struct Message {
+    /// Id of the message inside channel 
+    pub id: u64,
     /// type of the message. use MessageType enum with BitAnd (&) to represent the contents
     pub r#type: u32,
     /// data_text is used to store raw string that the client receives with the message. can be
@@ -233,10 +235,8 @@ pub struct Message {
     pub channel: u64,
     /// time in UNIX seconds
     pub time: u64,
-    /// time in nanoseconds excluding whole seconds (actual_nanoseconds - UNIX_SECONDS*10^9)
-    pub time_ns: u64,
     /// ID of the message to which the current message is replying. 0 if this is not a reply.
-    pub reply_id: u64,
+    pub reply_id: *mut u64,
 }
 
 /// Enum to represent errors that might occur when calling functions from this module (database

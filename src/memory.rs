@@ -1,21 +1,23 @@
 //! A module to allocate memory, mainly for arrays
 //!
-//! # ARRAY STRUCTURE
-//! [`usize asize` | `usize esize` | `data: bytes[asize*esize]` ]
-//! `asize`: amount of elements (allocated size divided by element size.
-//! `esize`: element size.
-//! both of them can be accessed with special functions.
-//! `data`: start of the array
+//! # ARRAY IMPLEMENTATION
+//! [`usize asize` | `usize esize` | `data: bytes[asize*esize]` ] <br>
+//! &Tab;where
+//! * `asize`: amount of elements (allocated size divided by element size.
+//! * `esize`: element size. <br>&Tab;(both of them can be accessed with special
+//!   functions)
+//! * `data`: start of the array
 //! ## How functions return arrays
 //! They return a pointer to the `data`, so that you can access array elements
 //! like normal in C. metadata is stored "to the left" of the pointer. while you
 //! can access metadata directly, you should use special functions
-//! [gigachatmem_array_size] and [gigachatmem_array_element_size] ## How you
-//! should pass arrays to function All functions are aware of this array type,
-//! so you should pass it just like you receive it: without manually subtracting
-//! anything to the pointer <br> Actually, you should never try to access the
-//! metadata directly. just treat this like a normal array, except you can get
-//! it's size from a function and you should deallocate it with this library.
+//! [gcmm_array_size] and [gcmm_array_element_size]
+//! ## How you should pass arrays to function
+//! All functions are aware of this array type, so you should pass it just like
+//! you receive it: without manually subtracting anything to the pointer <br>
+//! Actually, you should never try to access the metadata directly. just treat
+//! this like a normal array, except you can get it's size from a function and
+//! you should deallocate it with this library.
 //!
 //! # Note
 //! private functions may be generic. Public functions use private functions
@@ -28,13 +30,13 @@
 //! pointer or using allocation API. Private functions may cast memory to slices
 //! and vice versa.
 //!
-//! # Source
+//! # Source formatting
 //! Functions are grouped like this on purpose, there is 1 line between groups
 //! and no lines between function in group. Please don't format this.    :w
 
 use crate::database::structs;
 use std::{
-	alloc::{alloc, dealloc, Layout},
+	alloc::{alloc, dealloc, GlobalAlloc, Layout},
 	ffi::c_void,
 	mem::size_of,
 	ptr::null_mut,
@@ -67,6 +69,40 @@ unsafe fn alloc_array<T>(size: usize) -> Option<*mut T> {
 	}
 	let layout = layout.unwrap();
 	Some(alloc(layout).byte_add(2 * USIZE_SIZE) as *mut T)
+}
+
+/// Private API
+pub fn new_empty_array<T>() -> *mut T {
+	let layout = Layout::from_size_align(2 * USIZE_SIZE, GLOB_MEM_ALIGN).unwrap();
+	let mem = unsafe { 
+        let tmp_mem = alloc(layout) as *mut usize ;
+	    *tmp_mem = 0usize;
+	    *tmp_mem.add(1) = 0usize;
+        tmp_mem
+    };
+	mem as *mut T
+}
+
+/// Private API
+pub unsafe fn copy_from_slice<T>(data: &[T]) -> *mut T {
+	let pointer = data.as_ptr();
+	let memory = if let Some(mem) = alloc_array::<T>(data.len()) {
+		mem
+	} else {
+		return null_mut();
+	};
+	if gcmm_array_size(memory as *mut c_void) != data.len() {
+		#[cfg(debug_assertions)]
+		{
+			dbg!("size of buffer and size of array did not match in function copy_from_slice!!!");
+			dbg!("returning empty array...");
+		}
+		gcmm_free_array(memory as *mut c_void);
+		return null_mut();
+	}
+	// There is no way they overlap, right? right.
+	std::ptr::copy_nonoverlapping(pointer, memory, data.len());
+	memory
 }
 
 /// frees any array returned by this module
@@ -125,7 +161,7 @@ pub unsafe extern "C" fn gcmm_alloc_array(t: Type, n: usize) -> *mut c_void {
 	match t {
 		Type::Message => gcmm_alloc_Messages(n) as *mut c_void,
 		Type::Channel => gcmm_alloc_Channels(n) as *mut c_void,
-        Type::Raw => alloc_array::<u8>(n).unwrap_or(null_mut()) as *mut c_void,
+		Type::Raw => alloc_array::<u8>(n).unwrap_or(null_mut()) as *mut c_void,
 		_ => null_mut(), /* Why would rust complain on me matching an unreachable pattern on
 		                  * non_exhaustive enum */
 	}
@@ -168,36 +204,36 @@ pub unsafe extern "C" fn gcmm_array_element_size(arr: *mut c_void) -> usize {
 	*arr.add(1)
 }
 
-/// I am lazy and rust allows this. 
+/// I am lazy and rust allows this.
 macro_rules! gen_allocator {
-    ($struct:ident,$name:ident) => {
-        /// A function to allocate memory for [$struct](crate::database::structs::$struct)
-        /// 
-        /// # Arguments 
-        /// * `n`: size of the array. 
-        ///
-        /// # Returns 
-        /// * pointer to allocated memory 
-        /// 
-        /// # Safety
-        /// * uses memory allocation API, so has to be unsafe 
-        ///
-        /// # More details 
-        /// see [gcmm_alloc_array]
-        ///
-        /// # Note 
-        /// This documentation is generated from macro, so substitution may be incorrect, i don't
-        /// know how to fix this. Anyways, you should guess what this function returns from it's name
-        #[no_mangle]
-        pub unsafe extern "C" 
-        fn $name(n: usize) -> *mut structs::$struct {
-            let memory = alloc_array::<structs::$struct>(n);
-            memory.unwrap_or(null_mut()) as *mut structs::$struct
-        }
-    };
+	($struct:ident,$name:ident) => {
+		/// A function to allocate memory for
+		/// [$struct](crate::database::structs::$struct)
+		///
+		/// # Arguments
+		/// * `n`: size of the array.
+		///
+		/// # Returns
+		/// * pointer to allocated memory
+		///
+		/// # Safety
+		/// * uses memory allocation API, so has to be unsafe
+		///
+		/// # More details
+		/// see [gcmm_alloc_array]
+		///
+		/// # Note
+		/// This documentation is generated from macro, so substitution may be
+		/// incorrect, i don't know how to fix this. Anyways, you should guess what this
+		/// function returns from it's name
+		#[no_mangle]
+		pub unsafe extern "C" fn $name(n: usize) -> *mut structs::$struct {
+			let memory = alloc_array::<structs::$struct>(n);
+			memory.unwrap_or(null_mut()) as *mut structs::$struct
+		}
+	};
 }
 
 gen_allocator!(Channel, gcmm_alloc_Channels);
 gen_allocator!(Message, gcmm_alloc_Messages);
 gen_allocator!(Media, gcmm_alloc_Media);
-

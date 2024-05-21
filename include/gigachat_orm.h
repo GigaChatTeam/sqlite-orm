@@ -93,6 +93,8 @@ typedef struct MessageData {
 
 // A struct to represent any type of Message.
 typedef struct Message {
+        // Id of the message inside channel
+        uint64_t id;
         // type of the message. use MessageType enum with BitAnd (&) to represent the contents
         uint32_t type;
         // data_text is used to store raw string that the client receives with the message. can be
@@ -105,10 +107,8 @@ typedef struct Message {
         uint64_t channel;
         // time in UNIX seconds
         uint64_t time;
-        // time in nanoseconds excluding whole seconds (actual_nanoseconds - UNIX_SECONDS*10^9)
-        uint64_t time_ns;
         // ID of the message to which the current message is replying. 0 if this is not a reply.
-        uint64_t reply_id;
+        uint64_t *reply_id;
 } Message;
 
 // A struct that represents an array of permissions
@@ -132,16 +132,6 @@ typedef struct Channel {
         struct Permissions permissions;
 } Channel;
 
-// A c-style array with Channels.
-typedef struct ChannelArray {
-        // Size of the array. If `arrays_store_errors` feature is enabled: if data is nullptr, size
-        intptr_t size;
-        // Size allocated by rust's Vec. You can safely construct this much
-        intptr_t alloc;
-        // pointer to the element at index 0. If nullptr, operation did not succed and `size` field
-        struct Channel *data;
-} ChannelArray;
-
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -163,8 +153,8 @@ extern "C" {
 
  void test_rust_dynamic_library(void) ;
 
-// A function to load all channels with /user/&lt;UID&gt;/channels server request
- struct ChannelArray gigachatnw_load_channels(uint64_t uid, const char *token, const char *dlb_url) ;
+// A function to load all channels with /user/&lt;UID&gt;/channels server
+ struct Channel *gigachatnw_load_channels(uint64_t uid, const char *token, const char *dlb_url) ;
 
 // frees any array returned by this module
  void gcmm_free_array(void *arr) ;

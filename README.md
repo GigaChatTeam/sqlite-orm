@@ -1,6 +1,5 @@
 # Overview
 ## TODO 
-* Implement a `C array` wrapper already, I've procrastinated on this long enough
 * Move nightly-only features behind a compilation feature 
 * Load channels
 * Implement integrity checks
@@ -8,7 +7,12 @@
 * test memory leaks and async more
 * test from FFI 
 * restructure SQL database 
-* implement json -> C structs through `into` trait
+* implement json -> C structs through `from` trait
+* CONSISTENCY WITH C STRINGS PLEASE 
+* ADD ERROR FUNCTION TO GET INFO ABOUT LAST ERROR
+    Especially in networking module where arrays are returned
+* Quote all names in `src/database/sqlite.rs`
+* I just realized that i have to implement deletions and updates for channels, e.t.c... This is fucked, not gonna lie. 
 ## What?
 API abstracting away SQL for database interactions
 ## Why?
